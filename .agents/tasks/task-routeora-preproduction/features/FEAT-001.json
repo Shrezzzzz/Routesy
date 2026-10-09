@@ -1,0 +1,76 @@
+{
+  "id": "FEAT-001",
+  "type": "fix",
+  "description": "Critical security fixes, all audit remediations (HIGH/MED/LOW), HTTP 500 diagnosis+fix, and backend hardening. Covers CRIT-1 (JWT fallback), CRIT-2 (Vite proxy), dependency upgrades, isOwner extraction, Prisma indexes+enums migration, build script fix, RoutingService geometry merge, dead code removal, and production config scaffolding.",
+  "status": "completed",
+  "steps": [
+    "STEP 1 — Security: In packages/backend/src/app.ts, add a startup guard BEFORE app is created (or right after imports): `if (process.env.NODE_ENV !== 'test' && (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'dev-secret')) { throw new Error('JWT_SECRET env var must be set to a strong secret in non-test environments'); }`. Also add: `if (process.env.NODE_ENV === 'production' && !process.env.FRONTEND_URL) { throw new Error('FRONTEND_URL must be set in production'); }`. These run at module load time.",
+
+    "STEP 2 — Security: In packages/backend/src/middleware/auth.ts, remove `?? 'dev-secret'` fallback on line 28. Change `const secret = process.env.JWT_SECRET ?? 'dev-secret'` to `const secret = process.env.JWT_SECRET!`. In packages/backend/src/routes/auth.ts, do the same for both `const secret = process.env.JWT_SECRET ?? 'dev-secret'` occurrences (lines 32 and 65).",
+
+    "STEP 3 — Vite proxy: In packages/frontend/vite.config.ts, change proxy target from `'http://localhost:3001'` to `process.env.VITE_BACKEND_URL ?? 'http://localhost:3001'`. This is the dev server proxy only.",
+
+    "STEP 4 — Dependency upgrades: In packages/backend/package.json, change `\"express\": \"4.18.2\"` to `\"express\": \"4.22.3\"` and `\"vitest\": \"1.3.1\"` to `\"vitest\": \"1.6.1\"` and `\"@vitest/coverage-v8\": \"1.3.1\"` to `\"@vitest/coverage-v8\": \"1.6.1\"`. In packages/frontend/package.json, change `\"vitest\": \"1.3.1\"` to `\"vitest\": \"1.6.1\"` and `\"@vitest/coverage-v8\": \"1.3.1\"` to `\"@vitest/coverage-v8\": \"1.6.1\"`. Then run `npm install` at the workspace root.",
+
+    "STEP 5 — isOwner extraction: Create packages/backend/src/utils/ownership.ts with a single exported `isOwner` function: `export function isOwner(trip: { ownerId: string | null; sessionId: string | null; isPublic?: boolean }, userId: string | null | undefined, sessionId: string | null | undefined): boolean { if (userId && trip.ownerId === userId) return true; if (sessionId && trip.sessionId === sessionId) return true; return false; }`. Then remove the local `isOwner` function from routes/trips.ts, routes/stops.ts, routes/sharing.ts, and routes/route.ts and import from `'../utils/ownership'` in each. The stops.ts file also has `loadAndAuthorizeTrip` which calls the local isOwner — update that to use the imported version.",
+
+    "STEP 6 — Remove dead backend code: Delete packages/backend/src/utils/navigationUrl.ts (confirmed unused — not imported in any route file). This is safe because the frontend has its own copy in packages/frontend/src/utils/navigationUrl.ts.",
+
+    "STEP 7 — Prisma schema changes: In packages/backend/prisma/schema.prisma, add indexes and enums. Add before the model definitions: `enum TravelMode { driving walking cycling }` and `enum RouteMode { manual optimized }`. Change Trip model: `travelMode TravelMode @default(driving)` and `routeMode RouteMode @default(manual)`. Add to Stop model: `@@index([tripId])` and `@@index([sequence])`. Add to Trip model: `@@index([sessionId])`, `@@index([ownerId])`, `@@index([shareToken])` (shareToken already has @unique which creates an index, but explicit @@index is acceptable — actually skip @@index([shareToken]) since @unique already creates one; add only sessionId and ownerId). Then run: `cd packages/backend && npx prisma migrate dev --name add_indexes_and_enums`. This creates a new migration file in prisma/migrations/.",
+
+    "STEP 8 — Backend build script: In packages/backend/package.json, change `\"build\": \"tsc\"` to `\"build\": \"prisma generate && tsc\"`. Also add `\"start\": \"node dist/index.js\"` to the scripts if not present.",
+
+    "STEP 9 — Fix route geometry stitching: In packages/backend/src/services/RoutingService.ts, rewrite the `calculateLargeRoute` merge section. Replace the current merge (which only keeps `segments[0]?.geometry`) with: collect all coordinate arrays from each segment's geometry (treat geometry as `{ type: string; coordinates: number[][] }`), de-duplicate the overlap point between consecutive segments (the last coord of segment N equals the first coord of segment N+1 — drop the first coord of each subsequent segment before concatenating), and return a single `{ type: 'LineString', coordinates: mergedCoords }`. Total distance and duration already sum correctly.",
+
+    "STEP 10 — useStops duplicate fetch: In packages/frontend/src/hooks/useStops.ts, remove the useEffect that fetches `/api/trips/${tripId}`. The hook should NOT fetch on mount. Instead, add an `initialize(stopsArray: Stop[])` method that sets local state from data already loaded by useTrip. In packages/frontend/src/pages/TripPlanner.tsx, remove the `useStops(tripId)` call. Instead, use `trip?.stops ?? []` directly for the stop list. Derive stop mutations (addStop, deleteStop, reorderStops, etc.) by refetching the trip after mutations: call `refetchTrip()` after each mutation rather than maintaining a separate stops state. This means useStops' mutation methods should call the API then invoke a callback to refetch the parent trip. Simplest implementation: keep useStops but give it a `stops` prop (derived from useTrip) instead of fetching, and after each mutation call refetchTrip. Concretely: useStops signature becomes `useStops(tripId, initialStops, onMutate)` where onMutate is called after any mutation and the caller (TripPlanner) passes `refetchTrip` as `onMutate`. Remove the useEffect and revision state from useStops entirely.",
+
+    "STEP 11 — Load cached route on mount: In packages/frontend/src/pages/TripPlanner.tsx, after `useTrip` returns, initialize `routeCache` state from `trip?.routeCache ?? null`. In packages/frontend/src/hooks/useRoute.ts, change the hook to accept an `initialRouteCache` param: `export function useRoute(tripId?: string, initialRouteCache?: RouteCache | null)` and initialize state as `useState<RouteCache | null>(initialRouteCache ?? null)`. In TripPlanner.tsx, pass `trip?.routeCache` as the second argument to `useRoute(tripId, trip?.routeCache)`.",
+
+    "STEP 12 — Fix useGeocoding session key: In packages/frontend/src/utils/api.ts, export the SESSION_ID_KEY constant: change `const SESSION_ID_KEY` to `export const SESSION_ID_KEY`. In packages/frontend/src/hooks/useGeocoding.ts, import `SESSION_ID_KEY` from `'../utils/api'` and replace the hardcoded `localStorage.getItem('routesy-session-id')` with `localStorage.getItem(SESSION_ID_KEY)`.",
+
+    "STEP 13 — Fix useGeocoding AbortController unmount leak: In packages/frontend/src/hooks/useGeocoding.ts, add a `useEffect` that returns a cleanup: `useEffect(() => { return () => { abortControllerRef.current?.abort(); if (debounceRef.current) clearTimeout(debounceRef.current); }; }, []);`",
+
+    "STEP 14 — Delete unused useShare hook: packages/frontend/src/hooks/useShare.ts is confirmed unused (TripPlanner implements share inline; no file imports useShare). Delete it.",
+
+    "STEP 15 — Fix Settings.tsx logout: In packages/frontend/src/pages/Settings.tsx, import `useNavigate` from react-router-dom. In `handleLogout`, replace `window.location.reload()` with `navigate('/')`. Add `const navigate = useNavigate();` at the top of the component.",
+
+    "STEP 16 — Fix console.log lint warning: In packages/backend/src/index.ts, change `console.log(...)` to `console.info(...)` to satisfy the no-console ESLint rule.",
+
+    "STEP 17 — GeocodingService User-Agent: In packages/backend/src/services/GeocodingService.ts, change `'User-Agent': 'Routesy/1.0 (contact@routesy.app)'` to `'User-Agent': 'Routesy/1.0 (https://routesy.app)'`.",
+
+    "STEP 18 — Add GET /health to app.ts: In packages/backend/src/app.ts, add `app.get('/health', (_req, res) => res.status(200).json({ status: 'ok' }))` before the error handler.",
+
+    "STEP 19 — Add GET /api/geocode/reverse to geocoding route: In packages/backend/src/routes/geocoding.ts, add a new route `GET /reverse?lat=&lng=` that calls Nominatim reverse geocoding: `https://nominatim.openstreetmap.org/reverse?lat={lat}&lon={lng}&format=json`. Apply `geocodeLimiter`. Return `{ displayName, lat, lon, placeId, type }`. In packages/backend/src/services/GeocodingService.ts, add a `reverse(lat: number, lng: number): Promise<GeocodingResult | null>` method that calls Nominatim reverse endpoint.",
+
+    "STEP 20 — Production config: Create packages/backend/src/config/env.ts that exports a validated env config object using a simple validation pattern (no new packages — just manual checks). Create packages/backend/Procfile containing `web: npm run start`. Update root .env.example with all required variables including GEOCODING_USER_AGENT. Add docker-compose.yml comment warning about dev credentials.",
+
+    "STEP 21 — README production section: Update /Users/shrezzzzz/Documents/Code/Routesy/README.md to add a Production Deployment section documenting: env var table, `prisma migrate deploy` for production, health endpoint, Render/Vercel/Neon setup notes."
+  ],
+  "acceptance_criteria": [
+    "Backend startup throws an error when NODE_ENV != 'test' and JWT_SECRET is missing or 'dev-secret'",
+    "vite.config.ts proxy target uses VITE_BACKEND_URL env var with localhost:3001 fallback",
+    "express upgraded to 4.22.3 and vitest to 1.6.1 in both packages; npm install completes without errors",
+    "isOwner defined only once in packages/backend/src/utils/ownership.ts and imported in all 4 route files",
+    "packages/backend/src/utils/navigationUrl.ts deleted",
+    "Prisma migration for indexes and enums applied successfully; `npx prisma migrate status` shows all migrations applied",
+    "packages/backend/package.json build script is 'prisma generate && tsc'",
+    "RoutingService.calculateLargeRoute returns merged LineString coordinates from all segments",
+    "TripPlanner makes exactly one GET /api/trips/:id request on mount (no duplicate from useStops)",
+    "Returning to a trip with an existing routeCache displays the route polyline without pressing Calculate",
+    "SESSION_ID_KEY is exported from api.ts and useGeocoding.ts imports it",
+    "useShare.ts file deleted",
+    "Settings.tsx logout uses navigate('/') not window.location.reload()",
+    "GET /health returns 200 { status: 'ok' }",
+    "GET /api/geocode/reverse?lat=22.57&lng=88.36 returns a displayName",
+    "All 33 tests pass; npm run build succeeds; npm run lint reports 0 errors"
+  ],
+  "verification": [
+    "cd packages/backend && npm test — all 16 tests pass",
+    "cd packages/frontend && npm test — all 17 tests pass",
+    "npm run build (root) — both packages build clean",
+    "npm run lint (root) — 0 errors",
+    "cd packages/backend && npx prisma migrate status — shows all migrations applied, none pending"
+  ],
+  "blocked_reason": null,
+  "findings": "1. backend/src/utils/navigationUrl.ts was marked 'unused in routes' but IS imported by src/tests/utils.test.ts — it was restored rather than deleted. Step 6 note: the file is retained solely for the test. 2. Prisma enum migration required manually authored SQL with DROP DEFAULT before ALTER TYPE due to existing column defaults; prisma migrate dev is non-interactive in CI — the migration was created manually and applied via prisma migrate deploy. 3. useStops signature changed from useStops(tripId) to useStops(tripId, initialStops, onMutate) — TripNavigate.tsx was also updated (it was missed in the step description). 4. TravelMode/RouteMode enum values added to backend test mock data (trips.test.ts) to fix TS2345 errors after enum migration. 5. vitest upgraded from 1.3.1 to 1.6.1 in both packages; express upgraded from 4.18.2 to 4.22.3."
+}

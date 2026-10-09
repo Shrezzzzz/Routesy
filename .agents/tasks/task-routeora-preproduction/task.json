@@ -1,0 +1,13 @@
+{
+  "task_id": "task-routeora-preproduction",
+  "task_description": "Pre-production preparation of the Routesy monorepo: critical security fixes, audit remediation, HTTP 500 diagnosis and fix, complete multi-stop workflow, Uber-style map location picker, guest/account auth pages, public sharing polish, and production configuration.",
+  "status": "pending",
+  "feature_order": [
+    "FEAT-001",
+    "FEAT-002",
+    "FEAT-003",
+    "FEAT-004",
+    "FEAT-005"
+  ],
+  "blocked_reason": null
+}

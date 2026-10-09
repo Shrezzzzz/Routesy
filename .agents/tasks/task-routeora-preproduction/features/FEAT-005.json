@@ -1,0 +1,39 @@
+{
+  "id": "FEAT-005",
+  "type": "chore",
+  "description": "Final integration pass, production configuration hardening, full test+build+lint verification, completion report, and git commit. This FEAT is strictly sequential after FEAT-001 through FEAT-004. It fixes any integration seams, runs the complete verification suite, and produces the deliverables.",
+  "status": "pending",
+  "steps": [
+    "STEP 1 — ShareView.tsx: Verify the public share view at GET /api/share/:token works end-to-end. The backend publicShare.ts already handles this correctly. The ShareView.tsx fetches `/api/share/${shareToken}` via `api.get()`. Confirm the URL pattern matches: ShareView has `useParams<{ shareToken: string }>()`, router has `/share/:shareToken` — these match. Confirm that `buildPublicTripPayload` strips ownerId, sessionId, owner.email, owner.password — already verified in audit. No changes needed unless integration testing reveals a mismatch.",
+
+    "STEP 2 — Verify sharing.ts route registration: In app.ts, `app.use('/api/trips', sharingRouter)` mounts sharing.ts which has routes `/:id/share`, `/:id/share` (DELETE), `/:id/share/regenerate`, and `/token/:token`. The `/token/:token` route in sharing.ts is unreachable as documented because `publicShare.ts` handles the public endpoint at `/api/share/:token`. The `sharing.ts` token route at `/api/trips/token/:token` is dead code — it's never called by the frontend (ShareView uses `/api/share/${shareToken}`). Remove or leave it (leave it — it's harmless and removing it could break existing bookmarks). Confirm TripPlanner's Share button → ShareModal → POST /api/trips/:id/share works after the enum migration.",
+
+    "STEP 3 — Run full test suite: `cd /Users/shrezzzzz/Documents/Code/Routesy && npm test`. All 33 tests must pass. If any fail due to FEAT-001 through FEAT-004 changes, fix them before proceeding. Common failure causes: (a) type errors from the useStops signature change, (b) the Prisma enum types causing TypeScript errors in tests that construct Trip objects with string travelMode/routeMode — update test fixtures to use enum values.",
+
+    "STEP 4 — Run full build: `cd /Users/shrezzzzz/Documents/Code/Routesy && npm run build`. Fix any TypeScript or compilation errors. Common issues: (a) after exporting SESSION_ID_KEY, check for circular imports; (b) after isOwner extraction, verify all 4 route files import correctly and no `trip.isPublic` param is passed where not needed (isOwner signature has isPublic as optional).",
+
+    "STEP 5 — Run lint: `cd /Users/shrezzzzz/Documents/Code/Routesy && npm run lint`. Fix any ESLint errors. `@max-warnings 0` is set on frontend, so warnings count as errors.",
+
+    "STEP 6 — Run TypeScript type-check (frontend): `cd packages/frontend && npx tsc --noEmit`. Fix any type errors not caught by the build step.",
+
+    "STEP 7 — Write completion report: Write to /Users/shrezzzzz/Documents/Code/Routesy/.agents/tasks/preproduction-report.md. Include: summary of all changes made by phase, migration names applied, test results, build results, lint results, any known limitations or deferred items.",
+
+    "STEP 8 — Git commit: Stage all changed files: `cd /Users/shrezzzzz/Documents/Code/Routesy && git add packages/ .env.example README.md`. Do NOT stage node_modules, .env, or any secrets. Commit: `git commit -m 'feat: pre-production fixes, map picker, auth pages, sharing improvements'`. Then push: `git push origin main` (or the current branch — check with `git branch --show-current` first)."
+  ],
+  "acceptance_criteria": [
+    "npm test (root) — all 33 tests pass",
+    "npm run build (root) — both packages build with exit code 0",
+    "npm run lint (root) — 0 errors, 0 warnings",
+    "npx tsc --noEmit in frontend — no type errors",
+    "preproduction-report.md written with all phases documented",
+    "git commit created with all changes staged"
+  ],
+  "verification": [
+    "cd /Users/shrezzzzz/Documents/Code/Routesy && npm test — exit 0, 33/33",
+    "cd /Users/shrezzzzz/Documents/Code/Routesy && npm run build — exit 0",
+    "cd /Users/shrezzzzz/Documents/Code/Routesy && npm run lint — exit 0",
+    "git log --oneline -1 — shows the final commit message"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

@@ -1,0 +1,40 @@
+{
+  "id": "FEAT-004",
+  "type": "feat",
+  "description": "Implement Login and Register pages, wire auth into Layout.tsx navbar, fix the broken /explore and /login /register nav links, and implement guest-to-account trip migration on login. The backend auth endpoints (POST /api/auth/register, POST /api/auth/login, GET /api/auth/me) are already fully implemented. This FEAT creates the missing frontend pages and wires everything together. This FEAT is independent of FEAT-003.",
+  "status": "pending",
+  "steps": [
+    "STEP 1 — Login.tsx: Create packages/frontend/src/pages/Login.tsx. Full working login form: email input (type=email, required), password input (type=password, required), submit button with loading state, error message display. On submit: POST /api/auth/login with { email, password }. On success: store token to localStorage key 'routesy-token', store email to localStorage key 'routesy-user-email'. Then check if X-Session-Id header exists (from localStorage 'routesy-session-id') — if it does, the backend login handler will migrate guest trips (see STEP 5 below). Then navigate to '/trips'. On error: display the API error message. Include a link to /register. Style with Tailwind, max-w-sm centered, indigo primary button, same Input component pattern as NewTrip.tsx.",
+
+    "STEP 2 — Register.tsx: Create packages/frontend/src/pages/Register.tsx. Fields: email, password, confirm password. Client-side validation: password must be ≥8 chars, passwords must match. On submit: POST /api/auth/register with { email, password }. On success: store token and email to localStorage (same keys as login), navigate to '/trips'. On error: display API error. Include link to /login. Same styling pattern as Login.tsx.",
+
+    "STEP 3 — Router: In packages/frontend/src/router/index.tsx, add lazy imports for Login and Register: `const Login = lazy(() => import('../pages/Login'))` and `const Register = lazy(() => import('../pages/Register'))`. Add routes inside the Layout children: `{ path: 'login', element: <Suspense fallback={<PageFallback />}><Login /></Suspense> }` and `{ path: 'register', element: <Suspense fallback={<PageFallback />}><Register /></Suspense> }`. Also add Explore: `const Explore = lazy(() => import('../pages/Explore'))` and `{ path: 'explore', element: <Suspense fallback={<PageFallback />}><Explore /></Suspense> }`.",
+
+    "STEP 4 — Explore.tsx: Create packages/frontend/src/pages/Explore.tsx. A simple 'coming soon' page: centered layout, a Map icon from Lucide, heading 'Explore', subtext 'Discover public trips and popular routes — coming soon.', and a Button that links back to /trips. This fixes the broken /explore nav link without requiring full implementation.",
+
+    "STEP 5 — Guest-to-account migration: In packages/backend/src/routes/auth.ts, in the POST /api/auth/login handler (after successful password verification and before sending the response), add guest trip migration: `const sessionId = req.headers['x-session-id'] as string | undefined; if (sessionId) { await prisma.trip.updateMany({ where: { sessionId, ownerId: null }, data: { ownerId: user.id, sessionId: null } }); }`. This transfers all guest trips to the authenticated user atomically. Do the same in the POST /api/auth/register handler.",
+
+    "STEP 6 — Layout.tsx navbar auth state: In packages/frontend/src/components/Layout.tsx, read auth state from localStorage: `const token = localStorage.getItem('routesy-token'); const userEmail = localStorage.getItem('routesy-user-email'); const isAuthenticated = Boolean(token)`. In the right-side actions area, add: when authenticated, show the user's email (truncated) and a Logout button (LogOut icon from Lucide) that clears localStorage keys 'routesy-token' and 'routesy-user-email' then navigates to '/'. When not authenticated, show Login (link to /login) and Sign up (link to /register) in the nav. Remove the broken Explore NavLink from Layout.tsx OR keep it now that the Explore page exists — keep it since the route now exists. NOTE: Layout.tsx currently does not use React state for auth — it reads localStorage synchronously on each render. This is acceptable for now; a context or event listener can be added later. Add a `useNavigate` call for the logout action.",
+
+    "STEP 7 — Settings.tsx cleanup: Settings.tsx already shows Login/Register links and logout. After this FEAT, /login and /register routes exist, so the links are no longer broken. Also apply the LOW-4 fix: replace `window.location.reload()` in handleLogout with `navigate('/')` (this was also in FEAT-001 step 15 — ensure it's only done once, place it here since this FEAT touches Settings context)."
+  ],
+  "acceptance_criteria": [
+    "GET /login renders Login.tsx with email+password form",
+    "Submitting valid credentials stores token+email in localStorage and redirects to /trips",
+    "GET /register renders Register.tsx with email+password+confirm form",
+    "Registering a new user stores token+email and redirects to /trips",
+    "After login, guest trips previously created with the session ID now appear in the authenticated user's trip list",
+    "Layout.tsx shows email+Logout when authenticated, Login/Sign up links when not",
+    "Logout clears localStorage and navigates to /",
+    "GET /explore renders Explore.tsx without a 404",
+    "All 33 existing tests still pass"
+  ],
+  "verification": [
+    "cd packages/backend && npm test — all 16 tests pass",
+    "cd packages/frontend && npm test — all 17 tests pass",
+    "npm run build (root) — both packages build clean",
+    "npm run lint (root) — 0 errors"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

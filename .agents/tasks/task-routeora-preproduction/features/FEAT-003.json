@@ -1,0 +1,41 @@
+{
+  "id": "FEAT-003",
+  "type": "feat",
+  "description": "Implement the Uber-style map location picker: a MapPickerModal component (Leaflet full-screen modal with movable crosshair, reverse geocode on moveend, Confirm/Cancel) and a LocationInput composite component (SearchCombobox + 'Choose on Map' button). Integrate LocationInput into TripPlanner start/end fields, the Add/Edit Stop dialog, and NewTrip.tsx. The backend reverse geocode endpoint was added in FEAT-001 step 19. This FEAT is independent of FEAT-002 for the modal/component implementation, but integrating into TripPlanner depends on FEAT-002's Add Stop dialog changes.",
+  "status": "pending",
+  "steps": [
+    "STEP 1 — MapPickerModal component: Create packages/frontend/src/components/map/MapPickerModal.tsx. Props: `{ open: boolean; initialLat?: number; initialLng?: number; onConfirm: (lat: number, lng: number, displayName: string) => void; onCancel: () => void; title?: string }`. Implementation: a full-screen fixed overlay (z-[600]) with a Leaflet MapContainer centered on initialLat/initialLng (default to Kolkata: 22.5726, 88.3639 if no initial coords). Place a centered crosshair pin (absolutely positioned div with a Leaflet-styled marker icon or a simple CSS crosshair) that always stays at the map center — do NOT use a draggable Marker, use the map's center coordinates instead (this is the standard 'pin in center' UX). On `moveend` event, reverse geocode the map center via GET /api/geocode/reverse?lat=&lng= and display the resolved address below the map. Show lat/lng coordinates. Footer buttons: 'Cancel' (secondary) and 'Confirm Location' (primary indigo). On confirm, call onConfirm(centerLat, centerLng, resolvedDisplayName). Use react-leaflet's `useMapEvents` hook inside a child component to listen to moveend. Show a loading spinner while reverse geocoding. Handle reverse geocode failure gracefully (show coordinates only). Tailwind styling, dark mode support.",
+
+    "STEP 2 — MapPickerModal inner map events: Create a child component `MapCenterListener` inside MapPickerModal.tsx that uses `useMapEvents({ moveend: (e) => { const c = e.target.getCenter(); onCenterChange(c.lat, c.lng); } })`. This pattern matches how `MapBoundsFitter` works in TripPlanner.tsx (same useMap pattern). The crosshair pin is a simple `<div>` using `position: absolute; top: 50%; left: 50%; transform: translate(-50%, -100%)` inside the map container wrapper div (outside the MapContainer but inside a relative parent). Use the Lucide `MapPin` icon in indigo-600 color, size w-8 h-8.",
+
+    "STEP 3 — LocationInput component: Create packages/frontend/src/components/ui/LocationInput.tsx. Props: `{ id: string; label: string; placeholder?: string; value?: { name: string; lat: number; lng: number } | null; onChange: (loc: { name: string; lat: number; lng: number } | null) => void; required?: boolean }`. Renders: the existing SearchCombobox (for text search) + a 'Choose on Map' button (MapPin icon + 'Map' text, secondary variant, sm size). When a geocode result is selected from SearchCombobox, call onChange with { name: displayName, lat, lng: lon }. When 'Choose on Map' is clicked, open MapPickerModal with initialLat/initialLng from current value if available. On MapPickerModal confirm, call onChange with the new coordinates and display name. Show the currently selected location name as the SearchCombobox's display value. Allow clearing the selection. The component must work as a drop-in replacement for the SearchCombobox + manual select pattern used in NewTrip.tsx and TripPlanner.tsx.",
+
+    "STEP 4 — Integrate LocationInput into NewTrip.tsx: Replace the two SearchCombobox instances (start-location and end-location) with LocationInput. The start location onChange should update `startLocation` state; end location onChange updates `endLocation` state. The payload construction in handleSubmit already reads from these state objects — no change needed there.",
+
+    "STEP 5 — Integrate LocationInput into TripPlanner Add/Edit Stop dialog: Replace the SearchCombobox in the Add Stop Dialog (from FEAT-002 step 4) with LocationInput. The LocationInput's onChange sets the dialog's location state `{ name, lat, lng }`. The stop's name field can still be edited separately. For Edit Stop dialog, initialize LocationInput's value from the existing stop's { name: stop.address ?? stop.name, lat: stop.latitude, lng: stop.longitude }.",
+
+    "STEP 6 — Integrate LocationInput into TripPlanner start/end route settings: Replace the SearchCombobox in the 'Route Settings' section (from FEAT-002 step 3) with LocationInput. On onChange, call updateTrip with the new start/end location fields.",
+
+    "STEP 7 — Verify no SSR/DOM issues: Leaflet requires `typeof window !== 'undefined'` guards only in SSR environments — this is a Vite SPA so no guards needed. Verify that react-leaflet 4.2.1 (already installed) is compatible with the useMapEvents pattern used in MapBoundsFitter (same version constraint — it is). Confirm that the MapPickerModal portal renders correctly above the existing Leaflet map in TripPlanner by checking z-index ordering (modal at z-[600], existing map at default, existing mobile panel at z-[400])."
+  ],
+  "acceptance_criteria": [
+    "MapPickerModal opens as a full-screen overlay with a working Leaflet map",
+    "A crosshair pin is always centered on the map and does not require dragging",
+    "Moving the map triggers reverse geocoding and displays the resolved address",
+    "Confirming populates the location field with the pinned coordinates and address",
+    "Cancel closes the modal without changing the location",
+    "LocationInput renders SearchCombobox + 'Choose on Map' button side by side",
+    "Selecting a geocode result in LocationInput calls onChange with correct lat/lng",
+    "LocationInput is used in NewTrip.tsx for start and end locations",
+    "LocationInput is used in the Add/Edit Stop dialog in TripPlanner",
+    "All 33 existing tests still pass after integration"
+  ],
+  "verification": [
+    "cd packages/backend && npm test — all 16 tests pass",
+    "cd packages/frontend && npm test — all 17 tests pass",
+    "npm run build (root) — both packages build clean",
+    "npm run lint (root) — 0 errors"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

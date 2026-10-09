@@ -1,0 +1,42 @@
+{
+  "id": "FEAT-002",
+  "type": "feat",
+  "description": "Diagnose and fix the HTTP 500 on trip creation, then implement the complete multi-stop workflow in TripPlanner. Depends on FEAT-001 (useStops refactor, route cache init). The HTTP 500 root cause: NewTrip.tsx POSTs a payload with { name, travelMode, description?, startLocationName?, startLatitude?, startLongitude?, endLocationName?, endLatitude?, endLongitude? } — this matches CreateTripSchema exactly, so the 500 is NOT a validation mismatch. The real issue is that the backend tries to create a trip without ownerId or sessionId when no X-Session-Id header is present AND the user is not authenticated. Looking at the code, the POST /api/trips handler does `sessionId ?? null` which is valid. The actual 500 is likely the missing Prisma enum constraint after the enum migration — if the DB has the old TEXT columns and code tries to create with string values post-enum-migration that's fine; but before migration if someone passes a bad value Zod catches it. CONCLUSION: the HTTP 500 is most likely a DATABASE_URL not set / Prisma client not generated issue in a clean checkout, or a missing migration. After FEAT-001 applies the migration and fixes the build script, this should resolve. Verify with curl after FEAT-001 is complete. If it's still failing after FEAT-001, inspect backend logs and fix the actual exception. This FEAT also implements the full multi-stop workflow UI.",
+  "status": "completed",
+  "steps": [
+    "STEP 1 — Verify HTTP 500 is resolved: Start the backend (`cd packages/backend && npm run dev`), then test: `curl -s -X POST http://localhost:3001/api/trips -H 'Content-Type: application/json' -H 'X-Session-Id: test-session-fix' -d '{\"name\":\"Test Trip\",\"travelMode\":\"driving\"}' | jq .`. If it returns { success: true, data: { id: ... } } the fix from FEAT-001 resolved it. If still 500, check backend stderr for the actual exception and fix the root cause (do not assume — read the error).",
+
+    "STEP 2 — NewTrip.tsx redirect: Confirm that after successful creation, `navigate(`/trips/${created.id}`)` is called. This already exists in the current code — no change needed unless the curl test revealed a different issue.",
+
+    "STEP 3 — TripPlanner: Add Start/End location editing. The existing TripPlanner sidebar has trip name editing inline. Add a collapsible 'Route Settings' section below the trip name that shows: Start location (LocationInput component from FEAT-003, or SearchCombobox if FEAT-003 is not yet merged) and End location. On select, call `updateTrip({ startLocationName, startLatitude, startLongitude })` or the end equivalents. Show the currently saved start/end location names as the input placeholder/value.",
+
+    "STEP 4 — Add Stop modal: The current TripPlanner has an 'Add Stop' button that opens a Dialog with a SearchCombobox. This works but only allows geocode-search selection. Enhance the Dialog to include: a name field (pre-filled from geocode result displayName.split(',')[0]) that the user can edit, and the address display. The `handleAddStopSelect` currently auto-saves immediately on geocode selection — change it to populate a form state first, then save on a 'Add Stop' confirm button. This prevents accidental additions. Keep the existing SearchCombobox for geocoding. New dialog state: `{ name: string, address: string, lat: number | null, lng: number | null }`. 'Add Stop' button is disabled until lat/lng are set (i.e. a geocode result was selected or map picker used).",
+
+    "STEP 5 — Edit Stop: StopList's onEdit prop already exists but is not wired in TripPlanner.tsx (only onDelete is wired). Add `onEdit` to TripPlanner's handleEditStop: opens the add-stop Dialog pre-filled with the stop's current data. On save, calls `useStops.updateStop(stopId, { name, address, latitude, longitude })` then `refetchTrip()`. In StopCard.tsx, check if the Edit button already exists — if it has an Edit action but no handler, wire it up.",
+
+    "STEP 6 — Move Up/Move Down keyboard-accessible reorder: In packages/frontend/src/components/trip/StopList.tsx, add Move Up and Move Down buttons to each stop card wrapper. These buttons: `aria-label='Move {stop.name} up'` and `aria-label='Move {stop.name} down'`. On click, reorder the array (swap stop with index-1 or index+1), re-assign sequences (1-indexed), call `onReorder(newStops)`. Disable Move Up on first stop, Move Down on last stop. Use ChevronUp/ChevronDown Lucide icons (size sm). Add `aria-roledescription='Reorderable stop item'` to the `<li>` element and `aria-label='Drag to reorder'` + `role='button'` to the draggable div.",
+
+    "STEP 7 — Route stale marking: After any stop add, edit, delete, or reorder in TripPlanner, clear the displayed routeCache to indicate route needs recalculation. In useRoute.ts, add a `clearRoute()` method that sets routeCache to null. In TripPlanner, call `clearRoute()` inside the onMutate callback that is passed to useStops (from FEAT-001 step 10).",
+
+    "STEP 8 — Persist and verify: Test end-to-end: create trip → add 3 stops via search → reorder via drag → reorder via move-up/down → delete one → calculate route → refresh page → route polyline is still shown (from routeCache init in FEAT-001 step 11). All stop operations must persist to the database and survive a page refresh."
+  ],
+  "acceptance_criteria": [
+    "POST /api/trips returns 201 with the new trip ID (no HTTP 500)",
+    "Creating a trip in NewTrip.tsx redirects to /trips/:id",
+    "TripPlanner shows start/end location fields that save via PUT /api/trips/:id",
+    "Add Stop dialog requires geocode selection before enabling the confirm button",
+    "Edit Stop dialog pre-fills existing stop data and saves changes via PUT /api/trips/:id/stops/:stopId",
+    "Move Up and Move Down buttons are present on each stop with correct aria-labels and disabled states",
+    "Drag-and-drop reorder still works",
+    "After any stop mutation, routeCache display clears (user sees 'Calculate Route' prompt)",
+    "Refreshing TripPlanner for a trip with a saved routeCache shows the route polyline immediately"
+  ],
+  "verification": [
+    "cd packages/backend && npm test — all 16 tests pass",
+    "cd packages/frontend && npm test — all 17 tests pass",
+    "npm run build (root) — both packages build clean",
+    "Manual: curl POST /api/trips with X-Session-Id header returns 201"
+  ],
+  "blocked_reason": null,
+  "findings": "1. HTTP 500 on trip creation was already resolved by FEAT-001 — curl POST /api/trips returns 201 with trip data. 2. useRoute.ts gained a clearRoute() method that sets routeCache to null. 3. TripPlanner.tsx was refactored: onMutate combines refetchTrip + clearRoute; Route Settings collapsible section added with start/end SearchCombobox; Add Stop dialog now uses a pendingStop form state with an editable name field and an explicit confirm button (disabled until a geocode result is selected); Edit Stop dialog added pre-filled with stop data; onEdit wired to both desktop and mobile StopList instances. 4. StopList.tsx gained Move Up/Move Down buttons with aria-labels and disabled states for first/last positions; drag-and-drop preserved; aria-roledescription added to <li> elements. 5. StopCard.tsx required no changes — the Edit button was already wired via the onEdit prop pattern. 6. All 33 tests pass, both packages build clean, 0 lint errors."
+}
