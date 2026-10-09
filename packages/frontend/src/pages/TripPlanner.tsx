@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Plus, Share2, Play, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
+import { Plus, Share2, Play, ChevronDown, ChevronUp, Loader2, MapPin } from 'lucide-react';
 import { useMap } from 'react-leaflet';
 
 import { useTrip } from '../hooks/useTrip';
@@ -14,6 +14,7 @@ import { StopList } from '../components/trip/StopList';
 import { RouteStats } from '../components/trip/RouteStats';
 import { ShareModal } from '../components/trip/ShareModal';
 import { Button } from '../components/ui/Button';
+import { Input } from '../components/ui/Input';
 import { LoadingSkeleton } from '../components/ui/LoadingSkeleton';
 import { ErrorMessage } from '../components/ui/ErrorMessage';
 import { SearchCombobox } from '../components/ui/SearchCombobox';
@@ -47,13 +48,29 @@ function getStopStatus(stop: Stop): StopStatus {
   return StopStatus.PENDING;
 }
 
+// Pending stop form state for the add/edit dialogs
+interface PendingStop {
+  name: string;
+  address: string;
+  lat: number;
+  lng: number;
+}
+
 export default function TripPlanner() {
   const { tripId } = useParams<{ tripId: string }>();
   const navigate = useNavigate();
 
   const { trip, isLoading: tripLoading, error: tripError, refetch: refetchTrip, updateTrip } = useTrip(tripId);
-  const { stops, addStop, deleteStop, reorderStops } = useStops(tripId, trip?.stops ?? [], refetchTrip);
-  const { routeCache, isCalculating, calculateRoute } = useRoute(tripId, trip?.routeCache);
+
+  const { routeCache, isCalculating, calculateRoute, clearRoute } = useRoute(tripId, trip?.routeCache);
+
+  // Combined onMutate: refetch the trip and clear the stale route display
+  const handleMutate = useCallback(() => {
+    refetchTrip();
+    clearRoute();
+  }, [refetchTrip, clearRoute]);
+
+  const { stops, addStop, updateStop, deleteStop, reorderStops } = useStops(tripId, trip?.stops ?? [], handleMutate);
 
   const { search: searchGeo, results: geoResults, isLoading: geoLoading, clearResults } = useGeocoding();
 
@@ -61,6 +78,28 @@ export default function TripPlanner() {
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [addStopDialogOpen, setAddStopDialogOpen] = useState(false);
   const [isMobilePanelOpen, setIsMobilePanelOpen] = useState(false);
+
+  // Route Settings collapsible (open if start or end is missing)
+  const [routeSettingsOpen, setRouteSettingsOpen] = useState(false);
+  useEffect(() => {
+    if (trip) {
+      setRouteSettingsOpen(!trip.startLocationName || !trip.endLocationName);
+    }
+  }, [trip?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Geocoding hooks for start/end location search
+  const {
+    search: searchStart,
+    results: startResults,
+    isLoading: startLoading,
+    clearResults: clearStartResults,
+  } = useGeocoding();
+  const {
+    search: searchEnd,
+    results: endResults,
+    isLoading: endLoading,
+    clearResults: clearEndResults,
+  } = useGeocoding();
 
   // Inline trip name editing
   const [editingName, setEditingName] = useState(false);
@@ -79,24 +118,121 @@ export default function TripPlanner() {
     setEditingName(false);
   }, [nameValue, trip, updateTrip, refetchTrip]);
 
-  const handleAddStopSelect = useCallback(
+  // Start location selection
+  const handleStartSelect = useCallback(
     async (result: GeocodingResult) => {
-      if (!tripId) return;
-      const nextSeq = stops.length + 1;
-      await addStop({
-        name: result.displayName.split(',')[0].trim(),
-        address: result.displayName,
-        latitude: result.lat,
-        longitude: result.lon,
-        sequence: nextSeq,
-        skipped: false,
+      await updateTrip({
+        startLocationName: result.displayName,
+        startLatitude: result.lat,
+        startLongitude: result.lon,
       });
-      clearResults();
-      setAddStopDialogOpen(false);
+      refetchTrip();
+      clearStartResults();
     },
-    [tripId, stops.length, addStop, clearResults]
+    [updateTrip, refetchTrip, clearStartResults]
   );
 
+  // End location selection
+  const handleEndSelect = useCallback(
+    async (result: GeocodingResult) => {
+      await updateTrip({
+        endLocationName: result.displayName,
+        endLatitude: result.lat,
+        endLongitude: result.lon,
+      });
+      refetchTrip();
+      clearEndResults();
+    },
+    [updateTrip, refetchTrip, clearEndResults]
+  );
+
+  // ── Add Stop dialog state ──────────────────────────────────────────────────
+  const [pendingStop, setPendingStop] = useState<PendingStop | null>(null);
+  const [pendingStopName, setPendingStopName] = useState('');
+
+  const handleAddStopSelect = useCallback((result: GeocodingResult) => {
+    const name = result.displayName.split(',')[0].trim();
+    setPendingStop({ name, address: result.displayName, lat: result.lat, lng: result.lon });
+    setPendingStopName(name);
+  }, []);
+
+  const handleAddStopConfirm = useCallback(async () => {
+    if (!pendingStop || !tripId) return;
+    const nextSeq = stops.length + 1;
+    await addStop({
+      name: pendingStopName.trim() || pendingStop.name,
+      address: pendingStop.address,
+      latitude: pendingStop.lat,
+      longitude: pendingStop.lng,
+      sequence: nextSeq,
+      skipped: false,
+    });
+    setPendingStop(null);
+    setPendingStopName('');
+    clearResults();
+    setAddStopDialogOpen(false);
+  }, [pendingStop, pendingStopName, tripId, stops.length, addStop, clearResults]);
+
+  const handleAddStopDialogClose = useCallback(() => {
+    setAddStopDialogOpen(false);
+    setPendingStop(null);
+    setPendingStopName('');
+    clearResults();
+  }, [clearResults]);
+
+  // ── Edit Stop dialog state ─────────────────────────────────────────────────
+  const [editingStop, setEditingStop] = useState<Stop | null>(null);
+  const [editStopName, setEditStopName] = useState('');
+  const [editStopAddress, setEditStopAddress] = useState('');
+  const [editPendingGeo, setEditPendingGeo] = useState<{ lat: number; lng: number } | null>(null);
+
+  const {
+    search: searchEditGeo,
+    results: editGeoResults,
+    isLoading: editGeoLoading,
+    clearResults: clearEditResults,
+  } = useGeocoding();
+
+  const handleOpenEdit = useCallback(
+    (stopId: string) => {
+      const stop = stops.find((s) => s.id === stopId);
+      if (!stop) return;
+      setEditingStop(stop);
+      setEditStopName(stop.name);
+      setEditStopAddress(stop.address ?? '');
+      setEditPendingGeo(null);
+      clearEditResults();
+    },
+    [stops, clearEditResults]
+  );
+
+  const handleEditGeoSelect = useCallback((result: GeocodingResult) => {
+    setEditStopAddress(result.displayName);
+    setEditPendingGeo({ lat: result.lat, lng: result.lon });
+  }, []);
+
+  const handleEditStopSave = useCallback(async () => {
+    if (!editingStop) return;
+    const lat = editPendingGeo?.lat ?? editingStop.latitude;
+    const lng = editPendingGeo?.lng ?? editingStop.longitude;
+    await updateStop(editingStop.id, {
+      name: editStopName.trim() || editingStop.name,
+      address: editStopAddress,
+      latitude: lat,
+      longitude: lng,
+    });
+    setEditingStop(null);
+    setEditPendingGeo(null);
+    clearEditResults();
+  }, [editingStop, editStopName, editStopAddress, editPendingGeo, updateStop, clearEditResults]);
+
+  const handleEditStopClose = useCallback(() => {
+    setEditingStop(null);
+    setEditPendingGeo(null);
+    clearEditResults();
+  }, [clearEditResults]);
+
+  // ── Reorder ────────────────────────────────────────────────────────────────
   const handleReorder = useCallback(
     async (reordered: Stop[]) => {
       const payload = reordered.map((s) => ({ id: s.id, sequence: s.sequence }));
@@ -105,6 +241,7 @@ export default function TripPlanner() {
     [reorderStops]
   );
 
+  // ── Share ──────────────────────────────────────────────────────────────────
   const handleShareToggle = useCallback(
     async (isPublic: boolean) => {
       if (!tripId) return;
@@ -178,6 +315,53 @@ export default function TripPlanner() {
         )}
       </div>
 
+      {/* Route Settings collapsible */}
+      <div className="flex-shrink-0 border-b border-slate-200 dark:border-slate-700">
+        <button
+          type="button"
+          onClick={() => setRouteSettingsOpen((o) => !o)}
+          className="w-full flex items-center justify-between px-4 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors min-h-[44px]"
+          aria-expanded={routeSettingsOpen}
+          aria-controls="route-settings-panel"
+        >
+          <span className="flex items-center gap-1.5">
+            <MapPin className="w-4 h-4 text-indigo-500" aria-hidden="true" />
+            Route Settings
+          </span>
+          {routeSettingsOpen ? (
+            <ChevronUp className="w-4 h-4 text-slate-400" aria-hidden="true" />
+          ) : (
+            <ChevronDown className="w-4 h-4 text-slate-400" aria-hidden="true" />
+          )}
+        </button>
+        {routeSettingsOpen && (
+          <div id="route-settings-panel" className="px-4 pb-4 space-y-3">
+            <SearchCombobox
+              id="start-location"
+              label="Start location"
+              placeholder={activeTrip?.startLocationName ?? 'Search for start location…'}
+              onSearch={async (q) => {
+                searchStart(q);
+                return startResults;
+              }}
+              onSelect={handleStartSelect}
+              isLoading={startLoading}
+            />
+            <SearchCombobox
+              id="end-location"
+              label="End location"
+              placeholder={activeTrip?.endLocationName ?? 'Search for end location…'}
+              onSearch={async (q) => {
+                searchEnd(q);
+                return endResults;
+              }}
+              onSelect={handleEndSelect}
+              isLoading={endLoading}
+            />
+          </div>
+        )}
+      </div>
+
       {/* Route stats */}
       <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-700 flex-shrink-0">
         <RouteStats
@@ -227,6 +411,7 @@ export default function TripPlanner() {
           selectedStopId={selectedStopId ?? undefined}
           onSelect={(id) => setSelectedStopId((prev) => (prev === id ? null : id))}
           onReorder={handleReorder}
+          onEdit={handleOpenEdit}
           onDelete={deleteStop}
         />
       </div>
@@ -335,6 +520,7 @@ export default function TripPlanner() {
                   selectedStopId={selectedStopId ?? undefined}
                   onSelect={(id) => setSelectedStopId((prev) => (prev === id ? null : id))}
                   onReorder={handleReorder}
+                  onEdit={handleOpenEdit}
                   onDelete={deleteStop}
                 />
               </div>
@@ -346,28 +532,99 @@ export default function TripPlanner() {
       {/* Add stop dialog */}
       <Dialog
         open={addStopDialogOpen}
-        onClose={() => {
-          setAddStopDialogOpen(false);
-          clearResults();
-        }}
+        onClose={handleAddStopDialogClose}
         title="Add a stop"
       >
-        <SearchCombobox
-          id="add-stop-search"
-          label="Search for a location"
-          placeholder="e.g. College Square, Kolkata"
-          onSearch={async (q) => {
-            searchGeo(q);
-            return geoResults;
-          }}
-          onSelect={handleAddStopSelect}
-          isLoading={geoLoading}
-        />
-        {geoLoading && (
-          <div className="flex items-center justify-center mt-4">
-            <Loader2 className="w-5 h-5 animate-spin text-indigo-600" aria-hidden="true" />
+        <div className="space-y-4">
+          <SearchCombobox
+            id="add-stop-search"
+            label="Search for a location"
+            placeholder="e.g. College Square, Kolkata"
+            onSearch={async (q) => {
+              searchGeo(q);
+              return geoResults;
+            }}
+            onSelect={handleAddStopSelect}
+            isLoading={geoLoading}
+          />
+          {geoLoading && (
+            <div className="flex items-center justify-center">
+              <Loader2 className="w-5 h-5 animate-spin text-indigo-600" aria-hidden="true" />
+            </div>
+          )}
+
+          {pendingStop && (
+            <div className="space-y-3 pt-2 border-t border-slate-200 dark:border-slate-700">
+              <Input
+                id="add-stop-name"
+                label="Stop name"
+                value={pendingStopName}
+                onChange={(e) => setPendingStopName(e.target.value)}
+                placeholder="Enter stop name"
+              />
+              <p className="text-xs text-slate-500 dark:text-slate-400 truncate" title={pendingStop.address}>
+                {pendingStop.address}
+              </p>
+              <div className="flex justify-end gap-2 pt-1">
+                <Button variant="secondary" size="sm" onClick={handleAddStopDialogClose}>
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => void handleAddStopConfirm()}
+                  disabled={!pendingStop}
+                >
+                  Add Stop
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      </Dialog>
+
+      {/* Edit stop dialog */}
+      <Dialog
+        open={editingStop !== null}
+        onClose={handleEditStopClose}
+        title="Edit stop"
+      >
+        <div className="space-y-4">
+          <Input
+            id="edit-stop-name"
+            label="Stop name"
+            value={editStopName}
+            onChange={(e) => setEditStopName(e.target.value)}
+            placeholder="Enter stop name"
+          />
+          <SearchCombobox
+            id="edit-stop-search"
+            label="Change location (optional)"
+            placeholder="Search for a new location…"
+            onSearch={async (q) => {
+              searchEditGeo(q);
+              return editGeoResults;
+            }}
+            onSelect={handleEditGeoSelect}
+            isLoading={editGeoLoading}
+          />
+          {editStopAddress && (
+            <p className="text-xs text-slate-500 dark:text-slate-400 truncate" title={editStopAddress}>
+              {editPendingGeo ? '📍 New: ' : '📍 Current: '}{editStopAddress}
+            </p>
+          )}
+          <div className="flex justify-end gap-2 pt-1">
+            <Button variant="secondary" size="sm" onClick={handleEditStopClose}>
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => void handleEditStopSave()}
+              disabled={!editStopName.trim()}
+            >
+              Save Changes
+            </Button>
           </div>
-        )}
+        </div>
       </Dialog>
 
       {/* Share modal */}

@@ -9,6 +9,7 @@ interface UseRouteResult {
   error: string | null;
   calculateRoute: () => Promise<void>;
   optimizeRoute: () => Promise<void>;
+  clearRoute: () => void;
 }
 
 /**
@@ -50,6 +51,10 @@ export function useRoute(tripId?: string, initialRouteCache?: RouteCache | null)
     }
   }, [tripId]);
 
+  const clearRoute = useCallback(() => {
+    setRouteCache(null);
+  }, []);
+
   return {
     routeCache,
     isLoading,
@@ -57,5 +62,6 @@ export function useRoute(tripId?: string, initialRouteCache?: RouteCache | null)
     error,
     calculateRoute,
     optimizeRoute,
+    clearRoute,
   };
 }
