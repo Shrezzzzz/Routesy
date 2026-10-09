@@ -2,21 +2,9 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { prisma } from '../lib/prisma';
 import { generateShareToken, buildPublicTripPayload } from '../services/ShareService';
 import { sendSuccess, sendError } from '../utils/responseHelpers';
+import { isOwner } from '../utils/ownership';
 
 const router = Router({ mergeParams: true });
-
-/**
- * Check trip ownership by userId or sessionId.
- */
-function isOwner(
-  trip: { ownerId: string | null; sessionId: string | null },
-  userId: string | null | undefined,
-  sessionId: string | null | undefined
-): boolean {
-  if (userId && trip.ownerId === userId) return true;
-  if (sessionId && trip.sessionId === sessionId) return true;
-  return false;
-}
 
 // POST /api/trips/:id/share — enable sharing
 router.post('/:id/share', async (req: Request, res: Response, next: NextFunction) => {

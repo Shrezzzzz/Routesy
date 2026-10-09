@@ -11,8 +11,13 @@ interface UseRouteResult {
   optimizeRoute: () => Promise<void>;
 }
 
-export function useRoute(tripId?: string): UseRouteResult {
-  const [routeCache, setRouteCache] = useState<RouteCache | null>(null);
+/**
+ * Manages route calculation state.
+ * Accepts an optional initialRouteCache so that a previously calculated route
+ * is displayed immediately when the trip planner re-opens, without re-fetching.
+ */
+export function useRoute(tripId?: string, initialRouteCache?: RouteCache | null): UseRouteResult {
+  const [routeCache, setRouteCache] = useState<RouteCache | null>(initialRouteCache ?? null);
   const [isLoading, setIsLoading] = useState(false);
   const [isCalculating, setIsCalculating] = useState(false);
   const [error, setError] = useState<string | null>(null);

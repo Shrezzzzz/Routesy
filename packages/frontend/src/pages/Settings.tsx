@@ -1,5 +1,5 @@
 import { Sun, Moon, LogIn, UserPlus } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -7,6 +7,7 @@ import { cn } from '../utils/cn';
 
 export default function Settings() {
   const { theme, setTheme } = useTheme();
+  const navigate = useNavigate();
 
   // Check for auth token in localStorage
   const authToken = localStorage.getItem('routesy-token');
@@ -16,8 +17,7 @@ export default function Settings() {
   function handleLogout() {
     localStorage.removeItem('routesy-token');
     localStorage.removeItem('routesy-user-email');
-    // Force re-render (page reload keeps it simple for now)
-    window.location.reload();
+    navigate('/');
   }
 
   return (

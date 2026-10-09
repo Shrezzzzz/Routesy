@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import app from '../app';
+import { TravelMode, RouteMode } from '@prisma/client';
 
 // Mock the Prisma singleton so tests never touch a real DB
 vi.mock('../lib/prisma', () => {
@@ -53,8 +54,8 @@ const MOCK_TRIP = {
   endLocationName: null,
   endLatitude: null,
   endLongitude: null,
-  travelMode: 'driving',
-  routeMode: 'manual',
+  travelMode: TravelMode.driving,
+  routeMode: RouteMode.manual,
   isPublic: true,
   shareToken: 'share-token-21-chars-ok',
   stops: [],

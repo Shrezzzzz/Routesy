@@ -2,22 +2,9 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { prisma } from '../lib/prisma';
 import { CreateTripSchema, UpdateTripSchema } from '../validators/tripValidators';
 import { sendSuccess, sendError } from '../utils/responseHelpers';
+import { isOwner } from '../utils/ownership';
 
 const router = Router();
-
-/**
- * Checks whether the requester owns the trip.
- * Ownership is established by either authenticated user ID or session ID.
- */
-function isOwner(
-  trip: { ownerId: string | null; sessionId: string | null; isPublic: boolean },
-  userId: string | null | undefined,
-  sessionId: string | null | undefined
-): boolean {
-  if (userId && trip.ownerId === userId) return true;
-  if (sessionId && trip.sessionId === sessionId) return true;
-  return false;
-}
 
 // GET /api/trips — list trips for authenticated user or session
 router.get('/', async (req: Request, res: Response, next: NextFunction) => {

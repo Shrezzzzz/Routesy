@@ -4,6 +4,16 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 
 import { optionalAuth } from './middleware/auth';
+
+// Startup guards — fail fast in non-test environments if critical env vars are missing
+if (process.env.NODE_ENV !== 'test') {
+  if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'dev-secret') {
+    throw new Error('JWT_SECRET env var must be set to a strong secret in non-test environments');
+  }
+  if (process.env.NODE_ENV === 'production' && !process.env.FRONTEND_URL) {
+    throw new Error('FRONTEND_URL must be set in production');
+  }
+}
 import { apiLimiter } from './middleware/rateLimiter';
 import { errorHandler } from './middleware/errorHandler';
 
@@ -56,6 +66,9 @@ app.use('/api/geocode', geocodingRouter);
 
 // Public share endpoint (no auth): /api/share/:token
 app.use('/api/share', publicShareRouter);
+
+// Health check
+app.get('/health', (_req, res) => res.status(200).json({ status: 'ok' }));
 
 // Global error handler (must be last)
 app.use(errorHandler);

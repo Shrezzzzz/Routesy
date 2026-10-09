@@ -29,14 +29,12 @@ export default function TripNavigate() {
   const { tripId } = useParams<{ tripId: string }>();
   const navigate = useNavigate();
 
-  const { trip, isLoading: tripLoading, error: tripError } = useTrip(tripId);
+  const { trip, isLoading: tripLoading, error: tripError, refetch: refetchTrip } = useTrip(tripId);
   const {
     stops,
-    isLoading: stopsLoading,
-    error: stopsError,
     markVisited,
     skipStop,
-  } = useStops(tripId);
+  } = useStops(tripId, trip?.stops ?? [], refetchTrip);
 
   const { totalStops, visitedCount, progressPercent, currentStop, remainingStops } =
     useProgress(stops);
@@ -44,8 +42,8 @@ export default function TripNavigate() {
   const [skipDialogOpen, setSkipDialogOpen] = useState(false);
   const [isActing, setIsActing] = useState(false);
 
-  const isLoading = tripLoading || stopsLoading;
-  const loadError = tripError || stopsError;
+  const isLoading = tripLoading;
+  const loadError = tripError;
 
   if (isLoading) {
     return (

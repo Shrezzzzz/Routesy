@@ -1,5 +1,6 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import type { GeocodingResult } from '../types';
+import { SESSION_ID_KEY } from '../utils/api';
 
 interface UseGeocodingResult {
   search: (query: string) => void;
@@ -18,6 +19,14 @@ export function useGeocoding(): UseGeocodingResult {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // AbortController for in-flight requests
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Cleanup on unmount — abort any in-flight request and clear pending debounce
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort();
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, []);
 
   const clearResults = useCallback(() => {
     setResults([]);
@@ -51,7 +60,7 @@ export function useGeocoding(): UseGeocodingResult {
         const response = await fetch(`${baseUrl}/api/geocode/search?${params.toString()}`, {
           signal: abortControllerRef.current.signal,
           headers: {
-            'X-Session-Id': localStorage.getItem('routesy-session-id') ?? '',
+            'X-Session-Id': localStorage.getItem(SESSION_ID_KEY) ?? '',
           },
         });
 
@@ -74,10 +83,6 @@ export function useGeocoding(): UseGeocodingResult {
       }
     }, 300);
   }, []);
-
-  // Note: AbortController cleanup on unmount is handled at the component level
-  // by calling search('') or clearResults, but we also provide the ref for
-  // cleanup. Components using this hook should call clearResults on unmount.
 
   return { search, results, isLoading, error, clearResults };
 }

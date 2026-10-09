@@ -19,6 +19,41 @@ export class GeocodingService {
   private lastRequestAt = 0;
   private readonly minIntervalMs = 1000; // 1-second minimum between requests
 
+  async reverse(lat: number, lng: number): Promise<GeocodingResult | null> {
+    const now = Date.now();
+    const elapsed = now - this.lastRequestAt;
+    if (elapsed < this.minIntervalMs) {
+      await this.delay(this.minIntervalMs - elapsed);
+    }
+    this.lastRequestAt = Date.now();
+
+    const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`;
+
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Routesy/1.0 (https://routesy.app)',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Reverse geocoding request failed with status ${response.status}`);
+    }
+
+    const result = await response.json() as NominatimResult & { error?: string };
+
+    if (result.error) {
+      return null;
+    }
+
+    return {
+      displayName: result.display_name,
+      lat: parseFloat(result.lat),
+      lon: parseFloat(result.lon),
+      placeId: String(result.place_id),
+      type: result.type,
+    };
+  }
+
   async search(query: string, limit = 5): Promise<GeocodingResult[]> {
     // Enforce 1-second rate limit between requests
     const now = Date.now();
@@ -33,7 +68,7 @@ export class GeocodingService {
 
     const response = await fetch(url, {
       headers: {
-        'User-Agent': 'Routesy/1.0 (contact@routesy.app)',
+        'User-Agent': 'Routesy/1.0 (https://routesy.app)',
       },
     });
 

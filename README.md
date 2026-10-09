@@ -108,6 +108,51 @@ Run from `packages/frontend`:
 
 ---
 
+## Production Deployment
+
+### Environment variables
+
+| Variable | Required | Description |
+|---|---|---|
+| `DATABASE_URL` | ✅ | PostgreSQL connection string (use Neon for production) |
+| `JWT_SECRET` | ✅ | Long random string for signing JWTs. Generate: `openssl rand -hex 32` |
+| `PORT` | — | Server port (default: `3001`) |
+| `NODE_ENV` | — | Set to `production` in production environments |
+| `FRONTEND_URL` | ✅ in prod | Frontend origin for CORS (e.g. `https://routesy.vercel.app`) |
+| `GEOCODING_USER_AGENT` | — | Nominatim User-Agent identifying your deployment |
+| `VITE_API_URL` | — | Backend API URL used by the frontend bundle (set during Vite build) |
+
+> The backend **will refuse to start** if `JWT_SECRET` is missing or set to `dev-secret` in non-test environments.
+
+### Recommended architecture
+
+| Component | Platform |
+|---|---|
+| Frontend | Vercel or Render (static) |
+| Backend API | Render (web service) |
+| Database | Neon PostgreSQL |
+| Source | GitHub |
+
+### Database migrations in production
+
+Never use `prisma migrate dev` against a production database. Use:
+
+```bash
+npx prisma migrate deploy
+```
+
+This applies only pending migrations without generating new ones.
+
+### Health check
+
+```
+GET /health → 200 { "status": "ok" }
+```
+
+Configure your hosting provider to poll this endpoint for uptime monitoring.
+
+---
+
 ## API
 
 Base URL: `http://localhost:3001` (set via `PORT` env var)

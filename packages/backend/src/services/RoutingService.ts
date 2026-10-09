@@ -106,23 +106,34 @@ export class RoutingService {
       i += this.maxWaypoints - 1;
     }
 
-    // Merge segments
+    // Merge segments — stitch coordinate arrays, dropping the duplicate overlap point
     const allLegs: RouteLeg[] = [];
     let totalDistance = 0;
     let totalDuration = 0;
-    // Use geometry from first segment (simplified merge)
-    const mergedGeometry = segments[0]?.geometry ?? { type: 'LineString', coordinates: [] };
+    const mergedCoordinates: number[][] = [];
 
-    for (const seg of segments) {
+    for (let idx = 0; idx < segments.length; idx++) {
+      const seg = segments[idx];
       totalDistance += seg.totalDistance;
       totalDuration += seg.totalDuration;
       allLegs.push(...seg.legs);
+
+      const geo = seg.geometry as { type: string; coordinates: number[][] };
+      const coords = geo?.coordinates ?? [];
+
+      if (idx === 0) {
+        // First segment: include all coordinates
+        mergedCoordinates.push(...coords);
+      } else {
+        // Subsequent segments: skip the first coordinate (it duplicates the last of the previous)
+        mergedCoordinates.push(...coords.slice(1));
+      }
     }
 
     return {
       totalDistance,
       totalDuration,
-      geometry: mergedGeometry,
+      geometry: { type: 'LineString', coordinates: mergedCoordinates },
       legs: allLegs,
     };
   }

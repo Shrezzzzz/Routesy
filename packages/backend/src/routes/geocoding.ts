@@ -24,4 +24,35 @@ router.get('/search', geocodeLimiter, async (req: Request, res: Response, next: 
   }
 });
 
+// GET /api/geocode/reverse?lat=...&lng=...
+router.get('/reverse', geocodeLimiter, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const latParam = req.query['lat'] as string | undefined;
+    const lngParam = req.query['lng'] as string | undefined;
+
+    if (!latParam || !lngParam) {
+      sendError(res, 'Query parameters "lat" and "lng" are required', 400);
+      return;
+    }
+
+    const lat = parseFloat(latParam);
+    const lng = parseFloat(lngParam);
+
+    if (isNaN(lat) || isNaN(lng)) {
+      sendError(res, 'Parameters "lat" and "lng" must be valid numbers', 400);
+      return;
+    }
+
+    const result = await geocodingService.reverse(lat, lng);
+    if (!result) {
+      sendError(res, 'No result found for the given coordinates', 404);
+      return;
+    }
+
+    sendSuccess(res, result);
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default router;

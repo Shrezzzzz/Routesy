@@ -1,6 +1,6 @@
 import { nanoid } from 'nanoid';
 
-const SESSION_ID_KEY = 'routesy-session-id';
+export const SESSION_ID_KEY = 'routesy-session-id';
 const TOKEN_KEY = 'routesy-token';
 
 function getSessionId(): string {

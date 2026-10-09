@@ -52,8 +52,8 @@ export default function TripPlanner() {
   const navigate = useNavigate();
 
   const { trip, isLoading: tripLoading, error: tripError, refetch: refetchTrip, updateTrip } = useTrip(tripId);
-  const { stops, isLoading: stopsLoading, error: stopsError, addStop, deleteStop, reorderStops } = useStops(tripId);
-  const { routeCache, isCalculating, calculateRoute } = useRoute(tripId);
+  const { stops, addStop, deleteStop, reorderStops } = useStops(tripId, trip?.stops ?? [], refetchTrip);
+  const { routeCache, isCalculating, calculateRoute } = useRoute(tripId, trip?.routeCache);
 
   const { search: searchGeo, results: geoResults, isLoading: geoLoading, clearResults } = useGeocoding();
 
@@ -124,8 +124,8 @@ export default function TripPlanner() {
     refetchTrip();
   }, [tripId, refetchTrip]);
 
-  const isLoading = tripLoading || stopsLoading;
-  const loadError = tripError || stopsError;
+  const isLoading = tripLoading;
+  const loadError = tripError;
 
   if (isLoading) {
     return (

@@ -1,4 +1,8 @@
 # Run: docker compose up -d to start local PostgreSQL for development
+# ⚠ WARNING: These credentials are for local development only.
+#   NEVER use these passwords in a staging or production environment.
+#   Production deployments should use a managed database (e.g. Neon) with
+#   strong, unique credentials stored in environment variables.
 version: '3.9'
 
 services:

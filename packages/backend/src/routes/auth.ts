@@ -29,7 +29,7 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
       },
     });
 
-    const secret = process.env.JWT_SECRET ?? 'dev-secret';
+    const secret = process.env.JWT_SECRET!;
     const token = jwt.sign({ id: user.id, email: user.email }, secret, { expiresIn: '7d' });
 
     sendSuccess(
@@ -62,7 +62,7 @@ router.post('/login', async (req: Request, res: Response, next: NextFunction) =>
       return;
     }
 
-    const secret = process.env.JWT_SECRET ?? 'dev-secret';
+    const secret = process.env.JWT_SECRET!;
     const token = jwt.sign({ id: user.id, email: user.email }, secret, { expiresIn: '7d' });
 
     sendSuccess(res, {

@@ -1,6 +1,6 @@
 /**
- * Builds a Google Maps URL to navigate to a destination.
- * Google Maps travelmode params: driving, walking, bicycling, transit
+ * Builds a Google Maps navigation URL for a given destination.
+ * Used in backend tests. The frontend has its own copy to avoid a network call.
  */
 export function buildGoogleMapsUrl(
   lat: number,
@@ -8,15 +8,15 @@ export function buildGoogleMapsUrl(
   name: string,
   mode: 'driving' | 'walking' | 'cycling' = 'driving'
 ): string {
-  const travelmodeMap: Record<string, string> = {
+  const modeMap: Record<string, string> = {
     driving: 'driving',
     walking: 'walking',
     cycling: 'bicycling',
   };
 
-  const travelmode = travelmodeMap[mode] ?? 'driving';
+  const travelmode = modeMap[mode] ?? 'driving';
   const destination = encodeURIComponent(`${lat},${lng}`);
-  const destinationName = encodeURIComponent(name);
+  const label = encodeURIComponent(name);
 
-  return `https://www.google.com/maps/dir/?api=1&destination=${destination}&destination_place_id=${destinationName}&travelmode=${travelmode}`;
+  return `https://www.google.com/maps/dir/?api=1&destination=${destination}&destination_place_id=${label}&travelmode=${travelmode}`;
 }
