@@ -1,0 +1,72 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  trips     Trip[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Trip {
+  id                 String      @id @default(cuid())
+  ownerId            String?
+  owner              User?       @relation(fields: [ownerId], references: [id])
+  sessionId          String?
+  name               String
+  description        String?
+  startLocationName  String?
+  startLatitude      Float?
+  startLongitude     Float?
+  endLocationName    String?
+  endLatitude        Float?
+  endLongitude       Float?
+  travelMode         String      @default("driving")
+  routeMode          String      @default("manual")
+  isPublic           Boolean     @default(false)
+  shareToken         String?     @unique
+  stops              Stop[]
+  routeCache         RouteCache?
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+}
+
+model Stop {
+  id                   String    @id @default(cuid())
+  tripId               String
+  trip                 Trip      @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  name                 String
+  address              String?
+  latitude             Float
+  longitude            Float
+  sequence             Int
+  notes                String?
+  category             String?
+  estimatedVisitMinutes Int?
+  visitedAt            DateTime?
+  skipped              Boolean   @default(false)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+}
+
+model RouteCache {
+  id            String   @id @default(cuid())
+  tripId        String   @unique
+  trip          Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  totalDistance Float
+  totalDuration Float
+  geometry      Json
+  legs          Json
+  calculatedAt  DateTime @default(now())
+}
