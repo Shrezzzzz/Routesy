@@ -4,21 +4,14 @@ import { Car, Footprints, Bike } from 'lucide-react';
 import { api } from '../utils/api';
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
-import { SearchCombobox } from '../components/ui/SearchCombobox';
-import { useGeocoding } from '../hooks/useGeocoding';
-import type { GeocodingResult, Trip } from '../types';
+import LocationInput, { type LocationValue } from '../components/ui/LocationInput';
+import type { Trip } from '../types';
 import { cn } from '../utils/cn';
 
 type TravelMode = 'driving' | 'walking' | 'cycling';
 
 interface FormErrors {
   name?: string;
-}
-
-interface LocationField {
-  name: string;
-  lat: number | null;
-  lng: number | null;
 }
 
 const TRAVEL_MODES: { value: TravelMode; label: string; Icon: React.ElementType }[] = [
@@ -29,21 +22,12 @@ const TRAVEL_MODES: { value: TravelMode; label: string; Icon: React.ElementType 
 
 export default function NewTrip() {
   const navigate = useNavigate();
-  const { search: searchGeo, results: geoResults, isLoading: geoLoading } = useGeocoding();
 
   const [tripName, setTripName] = useState('');
   const [description, setDescription] = useState('');
   const [travelMode, setTravelMode] = useState<TravelMode>('driving');
-  const [startLocation, setStartLocation] = useState<LocationField>({
-    name: '',
-    lat: null,
-    lng: null,
-  });
-  const [endLocation, setEndLocation] = useState<LocationField>({
-    name: '',
-    lat: null,
-    lng: null,
-  });
+  const [startLocation, setStartLocation] = useState<LocationValue | null>(null);
+  const [endLocation, setEndLocation] = useState<LocationValue | null>(null);
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -72,12 +56,12 @@ export default function NewTrip() {
         travelMode,
       };
       if (description.trim()) payload.description = description.trim();
-      if (startLocation.lat != null) {
+      if (startLocation?.lat != null) {
         payload.startLocationName = startLocation.name;
         payload.startLatitude = startLocation.lat;
         payload.startLongitude = startLocation.lng;
       }
-      if (endLocation.lat != null) {
+      if (endLocation?.lat != null) {
         payload.endLocationName = endLocation.name;
         payload.endLatitude = endLocation.lat;
         payload.endLongitude = endLocation.lng;
@@ -90,14 +74,6 @@ export default function NewTrip() {
     } finally {
       setIsSubmitting(false);
     }
-  }
-
-  function handleStartSelect(result: GeocodingResult) {
-    setStartLocation({ name: result.displayName, lat: result.lat, lng: result.lon });
-  }
-
-  function handleEndSelect(result: GeocodingResult) {
-    setEndLocation({ name: result.displayName, lat: result.lat, lng: result.lon });
   }
 
   return (
@@ -143,29 +119,21 @@ export default function NewTrip() {
         </div>
 
         {/* Start location */}
-        <SearchCombobox
+        <LocationInput
           id="start-location"
           label="Start location (optional)"
           placeholder="Search for a starting point…"
-          onSearch={async (q) => {
-            searchGeo(q);
-            return geoResults;
-          }}
-          onSelect={handleStartSelect}
-          isLoading={geoLoading}
+          value={startLocation}
+          onChange={setStartLocation}
         />
 
         {/* End location */}
-        <SearchCombobox
+        <LocationInput
           id="end-location"
           label="End location (optional)"
           placeholder="Search for an ending point…"
-          onSearch={async (q) => {
-            searchGeo(q);
-            return geoResults;
-          }}
-          onSelect={handleEndSelect}
-          isLoading={geoLoading}
+          value={endLocation}
+          onChange={setEndLocation}
         />
 
         {/* Travel mode */}
