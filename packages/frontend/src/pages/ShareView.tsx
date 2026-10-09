@@ -117,7 +117,7 @@ export default function ShareView() {
           to="/"
           className="mt-4 text-sm text-indigo-600 dark:text-indigo-400 hover:underline"
         >
-          Go to Routeora
+          Go to Routesy
         </Link>
       </div>
     );
@@ -136,7 +136,7 @@ export default function ShareView() {
             className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 font-semibold text-base hover:opacity-80 transition-opacity"
           >
             <MapPin className="w-4 h-4" aria-hidden="true" />
-            Routeora
+            Routesy
           </Link>
           <div className="flex items-center gap-2">
             <Button

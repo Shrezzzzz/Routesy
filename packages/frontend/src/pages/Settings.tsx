@@ -9,13 +9,13 @@ export default function Settings() {
   const { theme, setTheme } = useTheme();
 
   // Check for auth token in localStorage
-  const authToken = localStorage.getItem('routeora-token');
-  const userEmail = localStorage.getItem('routeora-user-email');
+  const authToken = localStorage.getItem('routesy-token');
+  const userEmail = localStorage.getItem('routesy-user-email');
   const isAuthenticated = Boolean(authToken);
 
   function handleLogout() {
-    localStorage.removeItem('routeora-token');
-    localStorage.removeItem('routeora-user-email');
+    localStorage.removeItem('routesy-token');
+    localStorage.removeItem('routesy-user-email');
     // Force re-render (page reload keeps it simple for now)
     window.location.reload();
   }
@@ -121,7 +121,7 @@ export default function Settings() {
 
       {/* App info */}
       <p className="text-xs text-center text-slate-400 dark:text-slate-600 mt-8">
-        Routeora — Plan your stops. Enjoy the journey.
+        Routesy — Plan your stops. Enjoy the journey.
       </p>
     </div>
   );

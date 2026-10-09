@@ -1,8 +1,8 @@
-# Routeora
+# Routesy
 
 **Plan your stops. Enjoy the journey.**
 
-Routeora is a multi-stop route planner and trip execution app. Plan an itinerary with many destinations, view all stops on an interactive map, share the route with friends, and navigate one stop at a time — without ever losing your place.
+Routesy is a multi-stop route planner and trip execution app. Plan an itinerary with many destinations, view all stops on an interactive map, share the route with friends, and navigate one stop at a time — without ever losing your place.
 
 Built initially for planning Durga Puja pandal visits across Kolkata, it is generic enough for road trips, food tours, sightseeing, college trips, and any multi-stop journey.
 
@@ -26,7 +26,7 @@ Built initially for planning Durga Puja pandal visits across Kolkata, it is gene
 
 ```bash
 git clone <repo-url>
-cd routeora
+cd routesy
 npm install
 ```
 

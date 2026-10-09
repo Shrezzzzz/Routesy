@@ -28,7 +28,7 @@ interface RouteMapContainerProps {
 const KOLKATA_CENTER: [number, number] = [22.57, 88.36];
 
 /**
- * Wraps React Leaflet's MapContainer with sensible defaults for Routeora.
+ * Wraps React Leaflet's MapContainer with sensible defaults for Routesy.
  * Default center is Kolkata for the initial Durga Puja pandal use case.
  */
 function RouteMapContainer({ children, className, center = KOLKATA_CENTER, zoom = 12 }: RouteMapContainerProps) {

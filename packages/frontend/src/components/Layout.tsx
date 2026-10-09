@@ -16,7 +16,7 @@ export default function Layout() {
             className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 font-semibold text-lg hover:opacity-80 transition-opacity"
           >
             <MapPin className="w-5 h-5" aria-hidden="true" />
-            <span>Routeora</span>
+            <span>Routesy</span>
           </Link>
 
           {/* Nav links */}

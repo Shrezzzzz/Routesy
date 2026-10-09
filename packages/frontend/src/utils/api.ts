@@ -1,7 +1,7 @@
 import { nanoid } from 'nanoid';
 
-const SESSION_ID_KEY = 'routeora-session-id';
-const TOKEN_KEY = 'routeora-token';
+const SESSION_ID_KEY = 'routesy-session-id';
+const TOKEN_KEY = 'routesy-token';
 
 function getSessionId(): string {
   let sessionId = localStorage.getItem(SESSION_ID_KEY);

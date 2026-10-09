@@ -6,9 +6,9 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: routeora
-      POSTGRES_PASSWORD: routeora
-      POSTGRES_DB: routeora
+      POSTGRES_USER: routesy
+      POSTGRES_PASSWORD: routesy
+      POSTGRES_DB: routesy
     ports:
       - '5432:5432'
     volumes:

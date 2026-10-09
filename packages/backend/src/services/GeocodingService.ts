@@ -33,7 +33,7 @@ export class GeocodingService {
 
     const response = await fetch(url, {
       headers: {
-        'User-Agent': 'Routeora/1.0 (contact@routeora.app)',
+        'User-Agent': 'Routesy/1.0 (contact@routesy.app)',
       },
     });
 

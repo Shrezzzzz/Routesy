@@ -51,7 +51,7 @@ export function useGeocoding(): UseGeocodingResult {
         const response = await fetch(`${baseUrl}/api/geocode/search?${params.toString()}`, {
           signal: abortControllerRef.current.signal,
           headers: {
-            'X-Session-Id': localStorage.getItem('routeora-session-id') ?? '',
+            'X-Session-Id': localStorage.getItem('routesy-session-id') ?? '',
           },
         });
 
