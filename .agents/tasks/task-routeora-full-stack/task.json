@@ -1,0 +1,7 @@
+{
+  "task_id": "task-routeora-full-stack",
+  "task_description": "Build Routeora — a complete full-stack multi-stop route planner and trip execution web app. React/Vite frontend, Express/Prisma backend, PostgreSQL database, interactive Leaflet map, OSRM routing, Nominatim geocoding, trip sharing, and mobile-first execution UI.",
+  "status": "completed",
+  "feature_order": ["FEAT-001", "FEAT-002", "FEAT-003", "FEAT-004"],
+  "blocked_reason": null
+}

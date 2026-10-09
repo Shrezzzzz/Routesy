@@ -52,7 +52,7 @@ export default function TripPlanner() {
   const navigate = useNavigate();
 
   const { trip, isLoading: tripLoading, error: tripError, refetch: refetchTrip, updateTrip } = useTrip(tripId);
-  const { stops, isLoading: stopsLoading, error: stopsError, addStop, deleteStop, reorderStops, refetch: refetchStops } = useStops(tripId);
+  const { stops, isLoading: stopsLoading, error: stopsError, addStop, deleteStop, reorderStops } = useStops(tripId);
   const { routeCache, isCalculating, calculateRoute } = useRoute(tripId);
 
   const { search: searchGeo, results: geoResults, isLoading: geoLoading, clearResults } = useGeocoding();

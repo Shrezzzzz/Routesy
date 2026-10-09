@@ -1,0 +1,37 @@
+{
+  "id": "FEAT-004",
+  "type": "chore",
+  "description": "Final integration, infrastructure, and polish: Docker Compose for local PostgreSQL, ESLint + Prettier config for both packages, the root-level implementation plan markdown file, and any cross-package seam fixes identified during FEAT-001–003 integration. Independent of the other FEATs in that it adds wrapping infrastructure, but should run last to catch integration issues.",
+  "status": "completed",
+  "steps": [
+    "1. Create docker-compose.yml at the workspace root /Users/shrezzzzz/Documents/Code/Routesy/docker-compose.yml with the exact contents from the spec: postgres:16-alpine, POSTGRES_USER=routeora, POSTGRES_PASSWORD=routeora, POSTGRES_DB=routeora, port 5432:5432, named volume postgres_data. Add a comment at the top: '# Run: docker compose up -d to start local PostgreSQL for development'.",
+    "2. Create packages/backend/.eslintrc.json: extends @typescript-eslint/recommended, parser @typescript-eslint/parser, parserOptions project ./tsconfig.json, rules: no-console warn (allow in index.ts), @typescript-eslint/no-unused-vars error, @typescript-eslint/explicit-function-return-type off (too verbose for Express handlers).",
+    "3. Create packages/backend/.prettierrc: singleQuote true, semi true, tabWidth 2, trailingComma es5, printWidth 100.",
+    "4. Create packages/frontend/.eslintrc.json: extends @typescript-eslint/recommended, plugin:react-hooks/recommended, plugin:react/recommended, parserOptions project ./tsconfig.json, settings react.version detect, rules: react/react-in-jsx-scope off (React 18 automatic JSX transform).",
+    "5. Create packages/frontend/.prettierrc: same as backend — singleQuote true, semi true, tabWidth 2, trailingComma es5, printWidth 100.",
+    "6. Add lint dev dependencies to both packages: @typescript-eslint/eslint-plugin@7.1.1, @typescript-eslint/parser@7.1.1, eslint@8.57.0, prettier@3.2.5. Frontend also needs eslint-plugin-react@7.33.2, eslint-plugin-react-hooks@4.6.0. Install via npm install --save-dev in each package.",
+    "7. Verify the root package.json 'lint' script correctly delegates to both packages (already set up by setup step). Run 'npm run lint' from root and fix any auto-fixable lint errors in generated code.",
+    "8. Run 'npm run build' from the workspace root to verify both packages compile cleanly as a monorepo. Fix any TypeScript errors surfaced by the full build that were not caught by per-package builds (e.g., type mismatches across the api.ts contract).",
+    "9. Run 'npm test' from the workspace root to verify all vitest tests in both packages pass together.",
+    "10. Write /Users/shrezzzzz/Documents/Code/Routesy/README.md: project title, short description, tech stack list, setup instructions (clone, npm install, copy .env.example to .env, docker compose up -d, cd packages/backend && npx prisma migrate dev, npm run dev from root), available npm scripts, API base URL note, link to share URL pattern.",
+    "11. Write /Users/shrezzzzz/Documents/Code/Routesy/.agents/tasks/plan.md: the canonical implementation plan document (see plan.md content below — this is what the workflow's original loop would have run from). It summarizes all four FEATs as an ordered numbered checklist.",
+    "12. Make a final commit on the current branch with message 'feat: complete Routeora full-stack implementation'. Stage all modified and new files: docker-compose.yml, README.md, packages/backend/**, packages/frontend/**. Never push — the git-push step handles that."
+  ],
+  "acceptance_criteria": [
+    "docker-compose.yml exists at workspace root and contains postgres:16-alpine service",
+    "npm run build from workspace root exits 0 (both packages build)",
+    "npm test from workspace root exits 0 (all tests pass)",
+    "README.md exists with setup instructions",
+    ".agents/tasks/plan.md exists",
+    "A git commit exists on the branch with all files staged"
+  ],
+  "verification": [
+    "cd /Users/shrezzzzz/Documents/Code/Routesy && npm run build",
+    "cd /Users/shrezzzzz/Documents/Code/Routesy && npm test",
+    "ls /Users/shrezzzzz/Documents/Code/Routesy/docker-compose.yml",
+    "ls /Users/shrezzzzz/Documents/Code/Routesy/README.md",
+    "git -C /Users/shrezzzzz/Documents/Code/Routesy log --oneline -3"
+  ],
+  "blocked_reason": null,
+  "findings": "Installed @typescript-eslint/eslint-plugin@7.1.1, @typescript-eslint/parser@7.1.1, eslint@8.57.0, prettier@3.2.5 in backend; same plus eslint-plugin-react@7.33.2, eslint-plugin-react-hooks@4.6.0 in frontend. Fixed 16 backend ESLint errors by tuning .eslintrc.json rules (varsIgnorePattern for _-prefixed destructured vars, no-namespace off for Express augmentation, no-var-requires off for nanoid CommonJS import). Fixed 2 frontend ESLint errors: removed unused forwardRef/ref from MapContainer.tsx (converted to plain function component), removed unused refetchStops destructure in TripPlanner.tsx. npm run lint, npm run build, and npm test all pass cleanly."
+}

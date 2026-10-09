@@ -1,0 +1,15 @@
+{
+  "extends": ["plugin:@typescript-eslint/recommended"],
+  "parser": "@typescript-eslint/parser",
+  "parserOptions": {
+    "project": "./tsconfig.json"
+  },
+  "rules": {
+    "no-console": ["warn", { "allow": ["warn", "error", "info"] }],
+    "@typescript-eslint/no-unused-vars": ["error", { "varsIgnorePattern": "^_", "argsIgnorePattern": "^_", "destructuredArrayIgnorePattern": "^_", "ignoreRestSiblings": true }],
+    "@typescript-eslint/explicit-function-return-type": "off",
+    "@typescript-eslint/no-namespace": "off",
+    "@typescript-eslint/no-require-imports": "off",
+    "@typescript-eslint/no-var-requires": "off"
+  }
+}

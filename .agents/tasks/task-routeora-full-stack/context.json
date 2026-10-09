@@ -1,0 +1,21 @@
+{
+  "project_type": "npm workspaces monorepo — Node.js/Express backend + React/Vite frontend, both TypeScript",
+  "language": "TypeScript (frontend and backend)",
+  "build_system": "npm workspaces root at /Users/shrezzzzz/Documents/Code/Routesy; backend uses tsc, frontend uses vite build. Root scripts: 'npm run build' runs both in order. No turbo/nx — plain npm workspaces with concurrently for dev.",
+  "test_framework": "Vitest in both packages. Backend: vitest with supertest for API integration tests (mocked Prisma). Frontend: vitest + @testing-library/react with jsdom environment.",
+  "build_command": "npm run build (from root) OR cd packages/backend && npm run build OR cd packages/frontend && npm run build",
+  "test_command": "npm test (from root) OR cd packages/backend && npm test OR cd packages/frontend && npm test",
+  "verification_instructions": "1. cd packages/backend && npm run build (tsc compiles to dist/). 2. cd packages/frontend && npm run build (vite builds to dist/). 3. npm test from root runs both vitest suites. For Prisma: run 'npx prisma generate' (NOT 'prisma migrate') because no live DB is available during build — the generated client goes to node_modules/.prisma/client.",
+  "snapshot_or_generated_files": "packages/backend/dist/ (tsc output), packages/frontend/dist/ (vite output), packages/backend/node_modules/.prisma/client/ (prisma generate output). None are committed. Run 'npx prisma generate' inside packages/backend after schema is written.",
+  "environment_constraints": "No live PostgreSQL during implementation — use 'prisma generate' only, never 'prisma migrate'. The .env file is gitignored; .env.example is the template. No dev server to manage. Node.js available via system. All file operations must target /Users/shrezzzzz/Documents/Code/Routesy (the workspace root) — never write to the home directory.",
+  "contribution_requirements": "No AGENTS.md or CONTRIBUTING.md found. Follow rules from spec: no hardcoded API keys/credentials, guest usage via X-Session-Id header (UUID in localStorage), public share endpoint must NEVER expose User.email or User.password, use nanoid(21) for share tokens, mobile min-touch-target 44px, all forms must have accessible labels.",
+  "key_patterns": "Backend routes export Express Router; app.ts is the factory (exported for tests), index.ts calls app.listen. Frontend pages live in src/pages/, reusable UI in src/components/ui/, map in src/components/map/, trip-specific in src/components/trip/. Hooks live in src/hooks/. Tailwind dark mode via 'class' strategy, dark class on <html>. API base URL from VITE_API_URL env var. Zod schemas in src/validators/ (backend) and validated on forms (frontend).",
+  "relevant_files": [
+    "/Users/shrezzzzz/Documents/Code/Routesy/package.json",
+    "/Users/shrezzzzz/Documents/Code/Routesy/.env.example",
+    "/Users/shrezzzzz/Documents/Code/Routesy/.gitignore",
+    "/Users/shrezzzzz/Documents/Code/Routesy/packages/backend/ (to be created)",
+    "/Users/shrezzzzz/Documents/Code/Routesy/packages/frontend/ (to be created)"
+  ],
+  "directory_structure": "Root: package.json (workspaces), .gitignore, .env.example, docker-compose.yml (to create). packages/backend/: all Express/Prisma code. packages/frontend/: all React/Vite code. .agents/tasks/: planning artifacts (never committed)."
+}
