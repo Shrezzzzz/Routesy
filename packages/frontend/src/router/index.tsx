@@ -10,6 +10,9 @@ const TripPlanner = lazy(() => import('../pages/TripPlanner'));
 const TripNavigate = lazy(() => import('../pages/TripNavigate'));
 const ShareView = lazy(() => import('../pages/ShareView'));
 const Settings = lazy(() => import('../pages/Settings'));
+const Login = lazy(() => import('../pages/Login'));
+const Register = lazy(() => import('../pages/Register'));
+const Explore = lazy(() => import('../pages/Explore'));
 
 function PageFallback() {
   return (
@@ -69,6 +72,30 @@ const routes: RouteObject[] = [
         element: (
           <Suspense fallback={<PageFallback />}>
             <Settings />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'login',
+        element: (
+          <Suspense fallback={<PageFallback />}>
+            <Login />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'register',
+        element: (
+          <Suspense fallback={<PageFallback />}>
+            <Register />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'explore',
+        element: (
+          <Suspense fallback={<PageFallback />}>
+            <Explore />
           </Suspense>
         ),
       },

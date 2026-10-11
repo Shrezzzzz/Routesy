@@ -32,6 +32,15 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
     const secret = process.env.JWT_SECRET!;
     const token = jwt.sign({ id: user.id, email: user.email }, secret, { expiresIn: '7d' });
 
+    // Migrate any guest trips created in this session to the new account
+    const sessionId = req.headers['x-session-id'] as string | undefined;
+    if (sessionId) {
+      await prisma.trip.updateMany({
+        where: { sessionId, ownerId: null },
+        data: { ownerId: user.id, sessionId: null },
+      });
+    }
+
     sendSuccess(
       res,
       {
@@ -64,6 +73,15 @@ router.post('/login', async (req: Request, res: Response, next: NextFunction) =>
 
     const secret = process.env.JWT_SECRET!;
     const token = jwt.sign({ id: user.id, email: user.email }, secret, { expiresIn: '7d' });
+
+    // Migrate any guest trips created in this session to the authenticated user
+    const sessionId = req.headers['x-session-id'] as string | undefined;
+    if (sessionId) {
+      await prisma.trip.updateMany({
+        where: { sessionId, ownerId: null },
+        data: { ownerId: user.id, sessionId: null },
+      });
+    }
 
     sendSuccess(res, {
       token,

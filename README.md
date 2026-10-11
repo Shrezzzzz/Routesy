@@ -2,9 +2,9 @@
 
 **Plan your stops. Enjoy the journey.**
 
-Routesy is a multi-stop route planner and trip execution app. Plan an itinerary with many destinations, view all stops on an interactive map, share the route with friends, and navigate one stop at a time — without ever losing your place.
+Routesy is a multi-stop route planner and trip execution app. Add many destinations to a single itinerary, view every stop on an interactive map, share the route with friends, and navigate one stop at a time — without losing your place.
 
-Built initially for planning Durga Puja pandal visits across Kolkata, it is generic enough for road trips, food tours, sightseeing, college trips, and any multi-stop journey.
+Built for planning Durga Puja pandal visits across Kolkata, but generic enough for road trips, food tours, sightseeing, and any multi-stop journey.
 
 ---
 
@@ -12,51 +12,58 @@ Built initially for planning Durga Puja pandal visits across Kolkata, it is gene
 
 | Layer | Technology |
 |---|---|
-| Frontend | React 18, TypeScript, Vite, Tailwind CSS, React Router v6, Leaflet / React Leaflet, Lucide React |
-| Backend | Node.js, Express, TypeScript |
-| Database | PostgreSQL 16, Prisma ORM |
+| Frontend | React 18, TypeScript, Vite, Tailwind CSS, React Router v6, Leaflet, Lucide React |
+| Backend | Node.js 20, Express 4, TypeScript |
+| Database | PostgreSQL (Neon in production, local PG in development) |
+| ORM | Prisma 5 |
 | Validation | Zod |
-| Tests | Vitest, React Testing Library, Supertest |
+| Tests | Vitest, React Testing Library |
+| Map tiles | OpenStreetMap via Leaflet (free, attribution required) |
+| Geocoding | Nominatim (free, 1 req/sec limit) |
+| Routing | OSRM public demo (free, fair use) |
+| Navigation | Google Maps direction URLs (no API key required) |
 
 ---
 
-## Setup
+## Local development
+
+### Prerequisites
+
+- Node.js 20+
+- A running PostgreSQL instance (local install, or any hosted PG)
 
 ### 1. Clone and install
 
 ```bash
-git clone <repo-url>
-cd routesy
+git clone https://github.com/Shrezzzzz/Routesy.git
+cd Routesy
 npm install
 ```
 
 ### 2. Configure environment variables
 
-```bash
-cp .env.example .env
-```
-
-Edit `.env` and set values for:
-
-- `DATABASE_URL` — PostgreSQL connection string (default works with Docker Compose below)
-- `JWT_SECRET` — secret for signing JWTs
-- `PORT` — backend port (default: `3001`)
-- `FRONTEND_URL` — frontend origin for CORS (default: `http://localhost:5173`)
-- `VITE_API_URL` — backend URL for the frontend (default: `http://localhost:3001`)
-
-### 3. Start PostgreSQL with Docker Compose
+Create `packages/backend/.env`:
 
 ```bash
-docker compose up -d
+cp .env.example packages/backend/.env
 ```
 
-This starts a `postgres:16-alpine` container on port `5432` using the credentials in `docker-compose.yml`.
+Then edit `packages/backend/.env` and set:
 
-### 4. Run database migrations
+| Variable | Value |
+|---|---|
+| `DATABASE_URL` | Your local PostgreSQL connection string |
+| `JWT_SECRET` | Generate: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
+| `NODE_ENV` | `development` |
+| `FRONTEND_URL` | `http://localhost:5173` |
+
+> The backend **will refuse to start** if `JWT_SECRET` is missing or left as a placeholder.
+
+### 3. Run database migrations
 
 ```bash
 cd packages/backend
-npx prisma migrate dev
+npx prisma migrate deploy
 ```
 
 Optionally seed 21 Kolkata Durga Puja pandal stops:
@@ -65,122 +72,168 @@ Optionally seed 21 Kolkata Durga Puja pandal stops:
 npm run prisma:seed
 ```
 
-### 5. Start the development servers
+### 4. Start the development servers
+
+From the workspace root:
 
 ```bash
-# from workspace root
 npm run dev
 ```
 
-This runs the backend (port 3001) and frontend (port 5173) concurrently via `concurrently`.
+This starts both the backend (port 3001) and frontend (port 5173) concurrently.
+
+- Frontend: http://localhost:5173
+- Backend: http://localhost:3001
+- Health check: http://localhost:3001/health
 
 ---
 
 ## Available scripts
 
-Run from the workspace root:
+### Workspace root
 
 | Script | Description |
 |---|---|
 | `npm run dev` | Start both backend and frontend dev servers |
-| `npm run build` | Compile TypeScript (backend) and Vite bundle (frontend) |
-| `npm test` | Run all Vitest test suites |
-| `npm run lint` | Run ESLint across both packages |
+| `npm run build` | Build both packages |
+| `npm test` | Run all tests |
+| `npm run lint` | Lint both packages |
 
-Run from `packages/backend`:
-
-| Script | Description |
-|---|---|
-| `npm run build` | Compile TypeScript to `dist/` |
-| `npm run dev` | Start backend with hot-reload via `tsx watch` |
-| `npm test` | Run backend API tests |
-| `npm run prisma:generate` | Generate Prisma client without a live DB |
-| `npm run prisma:seed` | Seed sample pandal data |
-
-Run from `packages/frontend`:
+### `packages/backend`
 
 | Script | Description |
 |---|---|
-| `npm run build` | Vite production build to `dist/` |
+| `npm run build` | Generate Prisma client + compile TypeScript |
+| `npm run dev` | Start with hot-reload (`tsx watch`) |
+| `npm run start` | Start compiled production build |
+| `npm run migrate` | Apply pending migrations (`prisma migrate deploy`) |
+| `npm test` | Run backend tests |
+| `npm run prisma:seed` | Seed demo pandal data |
+
+### `packages/frontend`
+
+| Script | Description |
+|---|---|
+| `npm run build` | Vite production build |
 | `npm run dev` | Start Vite dev server |
 | `npm test` | Run frontend component tests |
-| `npm run preview` | Serve the production build locally |
+| `npm run preview` | Preview production build locally |
 
 ---
 
-## Production Deployment
+## Production deployment
 
-### Environment variables
-
-| Variable | Required | Description |
-|---|---|---|
-| `DATABASE_URL` | ✅ | PostgreSQL connection string (use Neon for production) |
-| `JWT_SECRET` | ✅ | Long random string for signing JWTs. Generate: `openssl rand -hex 32` |
-| `PORT` | — | Server port (default: `3001`) |
-| `NODE_ENV` | — | Set to `production` in production environments |
-| `FRONTEND_URL` | ✅ in prod | Frontend origin for CORS (e.g. `https://routesy.vercel.app`) |
-| `GEOCODING_USER_AGENT` | — | Nominatim User-Agent identifying your deployment |
-| `VITE_API_URL` | — | Backend API URL used by the frontend bundle (set during Vite build) |
-
-> The backend **will refuse to start** if `JWT_SECRET` is missing or set to `dev-secret` in non-test environments.
-
-### Recommended architecture
+### Architecture
 
 | Component | Platform |
 |---|---|
-| Frontend | Vercel or Render (static) |
-| Backend API | Render (web service) |
+| Frontend | Render (Static Site) |
+| Backend API | Render (Web Service) |
 | Database | Neon PostgreSQL |
 | Source | GitHub |
 
-### Database migrations in production
+### Frontend — Render Static Site
 
-Never use `prisma migrate dev` against a production database. Use:
+Settings:
+
+| Setting | Value |
+|---|---|
+| Root directory | `packages/frontend` |
+| Build command | `npm install && npm run build` |
+| Publish directory | `packages/frontend/dist` |
+
+The file `packages/frontend/.env.production` is already committed and sets `VITE_API_URL` to the backend URL at build time. No environment variables need to be added in Render for the frontend.
+
+### Backend — Render Web Service
+
+Settings:
+
+| Setting | Value |
+|---|---|
+| Root directory | `packages/backend` |
+| Build command | `npm install && npm run build` |
+| Start command | `npm run start` |
+
+**Deploy hook (run migrations before each deploy):**
+Add a pre-deploy command of `npm run migrate` in the Render service settings, or run it manually after first deploy.
+
+**Environment variables to set in Render:**
+
+| Variable | Value |
+|---|---|
+| `DATABASE_URL` | Your Neon connection string (with `?sslmode=require&channel_binding=require`) |
+| `JWT_SECRET` | A strong random secret (generate locally: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`) |
+| `NODE_ENV` | `production` |
+| `FRONTEND_URL` | `https://routesy-plan-your-stop.onrender.com` |
+| `GEOCODING_USER_AGENT` | `Routesy/1.0 (https://github.com/Shrezzzzz/Routesy)` |
+| `PORT` | Set automatically by Render — do not override |
+
+> Never paste the Neon connection string or JWT secret into a committed file.
+
+### Database migrations
+
+On every deploy, run:
 
 ```bash
 npx prisma migrate deploy
 ```
 
-This applies only pending migrations without generating new ones.
+This applies only pending migrations. It is safe to run against an existing database — it will not drop data or reset the schema.
 
-### Health check
+To set this up as a pre-deploy hook in Render, add the following as a "Pre-Deploy Command":
 
 ```
-GET /health → 200 { "status": "ok" }
+npm run migrate
 ```
 
-Configure your hosting provider to poll this endpoint for uptime monitoring.
+---
+
+## External services
+
+| Service | Purpose | Key required | Usage limit |
+|---|---|---|---|
+| OpenStreetMap / Leaflet | Map tiles | No | Attribution required |
+| Nominatim | Address search, reverse geocoding | No | 1 req/sec max; must send User-Agent |
+| OSRM (project-osrm.org) | Road route calculation | No | Public demo — fair use only |
+| Google Maps (direction URLs) | Navigation handoff | No | Uses public `/maps/dir/` URL |
+
+**Nominatim usage policy:** Do not send one request per keystroke. Routesy debounces searches at 300 ms and enforces a 1-second minimum interval between backend requests. If you deploy Routesy publicly at scale, consider self-hosting Nominatim or using a commercial geocoding provider.
+
+**OSRM:** The public demo server has no guaranteed SLA. If it is unavailable, route calculation will fail gracefully — the app continues to work without the route polyline.
 
 ---
 
 ## API
 
-Base URL: `http://localhost:3001` (set via `PORT` env var)
+Base URL in production: `https://routesy-plan-your-stop.onrender.com`
 
-Key endpoints:
+| Endpoint | Description |
+|---|---|
+| `GET /health` | Health check |
+| `POST /api/auth/register` | Create account |
+| `POST /api/auth/login` | Sign in |
+| `GET /api/auth/me` | Current user |
+| `GET /api/trips` | List trips (session or auth) |
+| `POST /api/trips` | Create trip |
+| `GET /api/trips/:id` | Get trip with stops |
+| `PUT /api/trips/:id` | Update trip |
+| `DELETE /api/trips/:id` | Delete trip |
+| `POST /api/trips/:id/duplicate` | Duplicate trip |
+| `POST /api/trips/:id/stops` | Add stop |
+| `PUT /api/trips/:id/stops/:stopId` | Update stop |
+| `DELETE /api/trips/:id/stops/:stopId` | Delete stop |
+| `POST /api/trips/:id/stops/reorder` | Reorder stops |
+| `POST /api/trips/:id/route` | Calculate route (OSRM) |
+| `POST /api/trips/:id/share` | Enable sharing |
+| `DELETE /api/trips/:id/share` | Disable sharing |
+| `GET /api/share/:token` | Public read-only trip |
+| `GET /api/geocode/search?q=` | Search locations (Nominatim) |
+| `GET /api/geocode/reverse?lat=&lng=` | Reverse geocode a coordinate |
 
-- `GET /api/trips` — list trips (requires `X-Session-Id` header or Bearer token)
-- `POST /api/trips` — create a trip
-- `GET /api/trips/:id` — get a trip with stops and route cache
-- `PUT /api/trips/:id` — update trip fields
-- `DELETE /api/trips/:id` — delete a trip
-- `POST /api/trips/:id/duplicate` — duplicate a trip
-- `POST /api/trips/:id/stops` — add a stop
-- `PUT /api/trips/:id/stops/:stopId` — update a stop
-- `DELETE /api/trips/:id/stops/:stopId` — remove a stop
-- `POST /api/trips/:id/stops/reorder` — reorder stops
-- `POST /api/trips/:id/route` — calculate route via OSRM
-- `POST /api/trips/:id/share` — enable public sharing
-- `DELETE /api/trips/:id/share` — disable public sharing
-- `GET /api/share/:token` — get public read-only trip (no auth required)
-- `GET /api/geocoding/search?q=…` — geocode a location via Nominatim
-
-## Shared itinerary URL pattern
-
-Public itineraries are accessible at:
+## Shared itinerary URLs
 
 ```
 /share/:shareToken
 ```
 
-Share tokens are 21-character URL-safe strings generated with nanoid. The public endpoint never exposes the owner's email address or password.
+Tokens are 21-character nanoid strings (~126 bits entropy). The public endpoint never exposes owner email, password, or session identifiers.
